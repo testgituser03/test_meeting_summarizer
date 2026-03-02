@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -39,13 +40,14 @@ def make_preprocess_fn(tokenizer, max_source: int, max_target: int, task_prefix:
             truncation=True,
             padding=False,
         )
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(
-                batch["summary"],
-                max_length=max_target,
-                truncation=True,
-                padding=False,
-            )
+        # text_target= is the Transformers 5.x replacement for
+        # the removed as_target_tokenizer() context manager.
+        labels = tokenizer(
+            text_target=batch["summary"],
+            max_length=max_target,
+            truncation=True,
+            padding=False,
+        )
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
@@ -66,13 +68,12 @@ def make_preprocess_no_speakers_fn(tokenizer, max_source: int, max_target: int, 
             truncation=True,
             padding=False,
         )
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(
-                batch["summary"],
-                max_length=max_target,
-                truncation=True,
-                padding=False,
-            )
+        labels = tokenizer(
+            text_target=batch["summary"],
+            max_length=max_target,
+            truncation=True,
+            padding=False,
+        )
         model_inputs["labels"] = labels["input_ids"]
         return model_inputs
 
@@ -80,6 +81,11 @@ def make_preprocess_no_speakers_fn(tokenizer, max_source: int, max_target: int, 
 
 
 def main() -> None:
+    # Enforce offline mode BEFORE any HuggingFace imports — all assets must
+    # already be cached in ~/.cache/huggingface/ by predownload_assets.py.
+    os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
     parser = argparse.ArgumentParser(description="Tokenize SAMSum into data/cache/")
     parser.add_argument("--config",   default="config.yaml")
     parser.add_argument("--model",    default=None, help="Override model_name")
@@ -138,6 +144,7 @@ def main() -> None:
             fn,
             batched=True,
             remove_columns=ds_raw["train"].column_names,
+            load_from_cache_file=True,   # reuse HF's internal .map() cache if available
             desc=f"Tokenizing ({variant})",
         )
         tokenized.save_to_disk(str(out_path))
