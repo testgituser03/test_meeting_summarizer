@@ -1,0 +1,20 @@
+{
+  "model": "t5-small",
+  "variant": "with_speakers",
+  "dataset": "knkarthick/samsum",
+  "split": "test",
+  "n_samples": 819,
+  "rouge1": 38.956,
+  "rouge2": 15.9568,
+  "rougeL": 31.9491,
+  "training_time_minutes": 35.06,
+  "best_epoch": 2.0,
+  "best_val_rougeL": 32.7729,
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-02T15:03:42.080751+00:00"
+}
