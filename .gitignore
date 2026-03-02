@@ -1,9 +1,10 @@
 # Model weights / checkpoints
-models/
 *.bin
 *.safetensors
 *.pt
 *.pth
+models/checkpoints/
+models/best/
 
 # Dataset + HF caches (keep local)
 data/cache/
@@ -29,4 +30,3 @@ __pycache__/
 # Secrets
 .env
 *.token
-
