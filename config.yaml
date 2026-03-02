@@ -5,7 +5,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Model ─────────────────────────────────────────────────────────────────────
-model_name: "facebook/bart-base"       # E1 architecture run (primary model); T5-small complete
+model_name: "facebook/bart-base"       # E1 complete: BART-base ROUGE-L 39.85 | T5-small 31.95; E2+E3 also use this model
 task_prefix: ""                        # BART: no task prefix; T5 uses "summarize: "
 
 # ── Tokenization ──────────────────────────────────────────────────────────────
@@ -55,4 +55,4 @@ save_total_limit: 2                    # Retain only 2 checkpoints on disk; ≈ 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
 dataset_name: "knkarthick/samsum"      # HuggingFace Hub ID; pre-downloaded to local cache
-dataset_variant: "with_speakers"       # "with_speakers" | "no_speakers" (controls E2 ablation)
+dataset_variant: "no_speakers"         # E2 ablation: no_speakers (only change vs E1); revert to "with_speakers" after E2
