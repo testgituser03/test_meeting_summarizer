@@ -1,0 +1,58 @@
+# config.yaml — Single source of truth for ALL hyperparameters.
+# ─────────────────────────────────────────────────────────────────────────────
+# Rule: no script may hardcode a value that appears here. Read with:
+#   import yaml; cfg = yaml.safe_load(open("config.yaml"))
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model_name: "facebook/bart-base"      # Primary model; swap "t5-small" for E1 comparison
+task_prefix: ""                        # BART: empty; T5 requires "summarize: " (prepend to dialogue)
+
+# ── Tokenization ──────────────────────────────────────────────────────────────
+max_source_length: 512                 # Covers 99%+ of SAMSum dialogues (p99 ≈ 380 T5 tokens)
+max_target_length: 128                 # SAMSum summary max ≈ 90 tokens; 128 is a safe ceiling
+
+# ── Training ──────────────────────────────────────────────────────────────────
+batch_size: 8                          # Safe for BART-base BF16 on 24 GB UMA; peak MPS ≈ 1.1 GB
+learning_rate: 5.0e-5                  # Standard seq2seq fine-tuning rate; validated on BART/T5
+weight_decay: 0.01                     # AdamW L2 regularization coefficient
+num_epochs: 5                          # Upper bound; early stopping usually triggers at epoch 3–4
+warmup_steps: 500                      # Linear warmup from 0 → peak LR; ≈ 3.4% of BART-base steps
+gradient_clip_max_norm: 1.0            # Clips gradient L2 norm; prevents training instability
+
+# ── Decoding / Generation ─────────────────────────────────────────────────────
+num_beams: 4                           # Beam search width; E3 ablation tests 1, 4, 8
+length_penalty: 1.0                    # 1.0 = neutral; <1.0 → shorter outputs; >1.0 → longer
+early_stopping_beam: true              # Terminate beam search once all beams reach EOS token
+
+# ── Early Stopping (Training) ─────────────────────────────────────────────────
+early_stopping_patience: 2             # Halt training if rougeL does not improve for 2 epochs
+metric_for_best_model: "rougeL"        # Checkpoint selection criterion (seq2seq standard)
+load_best_model_at_end: true           # Restore best rougeL checkpoint at end of training
+greater_is_better: true                # rougeL is a score — higher is better
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+evaluation_strategy: "epoch"           # Run validation set evaluation after every epoch
+save_strategy: "epoch"                 # Align checkpoint saves with evaluation cadence
+predict_with_generate: true            # Use model.generate() for eval; required for ROUGE metrics
+
+# ── Optimization ──────────────────────────────────────────────────────────────
+use_bf16: true                         # M4 Pro natively supports BF16; stable in forward+backward
+use_fp16: false                        # MPS FP16 backward pass is numerically unstable — do not use
+optimizer: "adamw"                     # Decoupled weight decay; standard for transformer fine-tuning
+lr_scheduler_type: "linear"            # Linear decay from peak LR to 0 after warmup period
+
+# ── Hardware Constraints (M4 Pro MPS) ─────────────────────────────────────────
+dataloader_num_workers: 0              # CRITICAL: MPS + Python multiprocessing → MPS context errors
+dataloader_pin_memory: false           # UMA: CPU and GPU share memory pool; no PCIe transfer to pin
+dataloader_prefetch_factor: 2          # Prefetch 2 batches per worker (no-op when num_workers=0)
+
+# ── Reproducibility ───────────────────────────────────────────────────────────
+seed: 42                               # Fixes torch/numpy/Python random via transformers.set_seed()
+
+# ── Checkpointing ─────────────────────────────────────────────────────────────
+save_total_limit: 2                    # Retain only 2 checkpoints on disk; ≈ 600 MB total for BART
+
+# ── Dataset ───────────────────────────────────────────────────────────────────
+dataset_name: "knkarthick/samsum"      # HuggingFace Hub ID; pre-downloaded to local cache
+dataset_variant: "with_speakers"       # "with_speakers" | "no_speakers" (controls E2 ablation)

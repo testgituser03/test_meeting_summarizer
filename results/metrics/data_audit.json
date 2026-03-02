@@ -1,0 +1,148 @@
+{
+  "dataset": "knkarthick/samsum",
+  "license": "CC BY-NC-ND 4.0 \u2014 non-commercial use only",
+  "split_sizes": {
+    "train": 14731,
+    "validation": 818,
+    "test": 819
+  },
+  "leakage_check": {
+    "train_val_overlap": 0,
+    "train_test_overlap": 0,
+    "val_test_overlap": 0,
+    "passed": true
+  },
+  "token_stats": {
+    "train": {
+      "n": 14731,
+      "dialogue_tokens": {
+        "min": 13,
+        "p50": 119,
+        "p90": 296,
+        "p95": 367,
+        "p99": 525,
+        "max": 1153,
+        "mean": 148.9,
+        "std": 110.7
+      },
+      "summary_tokens": {
+        "min": 2,
+        "p50": 25,
+        "p90": 50,
+        "p95": 59,
+        "p99": 73,
+        "max": 94,
+        "mean": 28.7,
+        "std": 15.1
+      }
+    },
+    "validation": {
+      "n": 818,
+      "dialogue_tokens": {
+        "min": 17,
+        "p50": 114,
+        "p90": 289,
+        "p95": 351,
+        "p99": 527,
+        "max": 761,
+        "mean": 145.2,
+        "std": 111.5
+      },
+      "summary_tokens": {
+        "min": 5,
+        "p50": 25,
+        "p90": 49,
+        "p95": 60,
+        "p99": 73,
+        "max": 87,
+        "mean": 28.5,
+        "std": 15.1
+      }
+    },
+    "test": {
+      "n": 819,
+      "dialogue_tokens": {
+        "min": 18,
+        "p50": 121,
+        "p90": 308,
+        "p95": 384,
+        "p99": 520,
+        "max": 753,
+        "mean": 152.3,
+        "std": 112.4
+      },
+      "summary_tokens": {
+        "min": 6,
+        "p50": 25,
+        "p90": 49,
+        "p95": 57,
+        "p99": 70,
+        "max": 95,
+        "mean": 28.4,
+        "std": 14.6
+      }
+    }
+  },
+  "speaker_distribution_train": {
+    "2": {
+      "count": 10758,
+      "pct": 73.0
+    },
+    "3": {
+      "count": 2808,
+      "pct": 19.1
+    },
+    "4": {
+      "count": 822,
+      "pct": 5.6
+    },
+    "5": {
+      "count": 197,
+      "pct": 1.3
+    },
+    "6": {
+      "count": 75,
+      "pct": 0.5
+    },
+    "7": {
+      "count": 26,
+      "pct": 0.2
+    },
+    "8": {
+      "count": 15,
+      "pct": 0.1
+    },
+    "9": {
+      "count": 13,
+      "pct": 0.1
+    },
+    "10": {
+      "count": 6,
+      "pct": 0.0
+    },
+    "11": {
+      "count": 5,
+      "pct": 0.0
+    },
+    "12": {
+      "count": 2,
+      "pct": 0.0
+    },
+    "13": {
+      "count": 2,
+      "pct": 0.0
+    },
+    "14": {
+      "count": 2,
+      "pct": 0.0
+    }
+  },
+  "tokenizer_used": "t5-small",
+  "recommendations": {
+    "max_source_length": 525,
+    "max_target_length": 94,
+    "note_source": "p99 dialogue = 525 tokens; config.yaml max_source_length=512 covers all examples.",
+    "note_target": "max summary = 94 tokens; config.yaml max_target_length=128 is safe.",
+    "note_speakers": "Dataset skews heavily toward 2-speaker conversations. Model may underperform on multi-party meeting transcripts."
+  }
+}

@@ -1,0 +1,43 @@
+# requirements.txt — Project dependencies for meeting-summarizer
+# Python 3.12.x required (torch wheels may not exist for 3.14+)
+# Install: pip install -r requirements.txt
+# Then:    python3 -m spacy download en_core_web_sm
+
+# ── Core ML frameworks ────────────────────────────────────────────────────────
+torch>=2.3.0            # MPS BF16 support added in 2.3; 2.5.x recommended
+torchvision             # Required by torch ecosystem
+torchaudio              # Required by torch ecosystem
+
+# ── HuggingFace ecosystem ─────────────────────────────────────────────────────
+transformers>=4.38.0    # Seq2SeqTrainer; BART/T5 support
+datasets>=2.18.0        # SAMSum loading and preprocessing
+accelerate>=0.27.0      # Multi-device abstraction used by Trainer
+peft>=0.9.0             # LoRA/PEFT for optional parameter-efficient experiments
+huggingface-hub         # Token auth, model caching, Hub upload
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+evaluate>=0.4.1         # Unified metric loading (wraps rouge_score)
+rouge-score             # Google ROUGE implementation (use_stemmer=True)
+nltk                    # punkt tokenizer for sacrebleu
+sacrebleu               # Detokenized BLEU (secondary metric)
+bert-score              # Optional — downloads roberta-large (~1.4 GB) on first call
+
+# ── NLP utilities ─────────────────────────────────────────────────────────────
+spacy>=3.7.0            # NER for hallucination detection in faithfulness evaluation
+# Model installed separately: python3 -m spacy download en_core_web_sm
+
+# ── Demo application ──────────────────────────────────────────────────────────
+streamlit>=1.30.0       # Web UI for the summarizer demo (Day 7)
+
+# ── Data science stack ────────────────────────────────────────────────────────
+numpy
+pandas
+scipy                   # Bootstrap confidence intervals for statistical significance
+scikit-learn            # Misc utilities
+matplotlib
+seaborn                 # Result visualization
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+pyyaml                  # config.yaml parsing
+psutil                  # Memory monitoring during training
+tqdm                    # Progress bars
