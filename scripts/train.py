@@ -104,7 +104,11 @@ def make_compute_metrics(tokenizer):
         preds, labels = eval_preds
 
         # Step 1: Replace -100 (ignore index) with pad_token_id.
-        # Without this, tokenizer.batch_decode raises on the out-of-vocab -100.
+        # In Transformers 5.x, both generated predictions AND labels are padded
+        # with -100 when sequences in a batch differ in length.  The fast
+        # tokenizer's Rust backend raises OverflowError on negative token IDs,
+        # so we must sanitise both tensors before calling batch_decode.
+        preds  = np.where(preds  != -100, preds,  tokenizer.pad_token_id)
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
 
         # Step 2: Decode token IDs → strings.
