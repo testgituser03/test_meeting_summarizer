@@ -1,0 +1,142 @@
+[
+  {
+    "idx": 25,
+    "source": "Ollie: Okay, Kelly! Ur up nxt!\nKelly: Me? I don't wanna.\nMickey: C'mon!\nJessica: Yeah! What's yours?\nKelly: Fine. It's a sculpture garden in Finnland.\nOllie: What's scary about sculptures? Wait! Do they resemble vampires and stuff?\nMickey: Nah, I'm sure they look rly nice.\nKelly: It's not the sculptures, it's the amount of them and their faces!\nJessica: Faces? What faces?\nKelly: Well, they resemble ppl in different activities like hugging, training, doing sport and so on. But the faces are just morbid and there's like a hundred of them. All staring at you!\nOllie: Another one?\nMickey: Certainly!\nJessica: Well, Ollie, ur turn!\nOllie: Nagoro village in Japan!\nMickey: Y?\nOllie: Well, maybe it's not scary, but it similar to Kelly's place. It's just creepy as hell.\nJessica: Bt y?\nOllie: Imagine a village with ppl living in it. And in the same village u have these human-sized figures. And there's more of them than the ppl that actually live there!\nKelly: Creepy AH!\nMickey: WTF?! Y would ppl even do that?\nJessica: Idk. Idc. Never. Going. There.\nOllie: See! Mine was the worst!\nJessica: Bt not the scariest!\nOllie: Point taken.\nMickey: Listen, guys, fun talking to u, bt gotta go. \nKelly: Yeah, me too. Bye!\nJessica: Bye!\nOllie: Cu!",
+    "reference": "Kelly is scared of sculpture garden figures in Finnland, she finds figure's faces morbid. For Ollie it's Nagoro village in Japan, it's creepy. ",
+    "generated": "Ollie, Kelly and Mickey are going to Nagoro village in Japan.",
+    "rouge_l_score": 27.03
+  },
+  {
+    "idx": 30,
+    "source": "Mary: hey, im kinda broke, lend me a few box\nCarter: okay, give me an hour, im at the train station\nMary: cool, thanks",
+    "reference": "Mary ran out of money. Carter is going to lend her some in an hour.",
+    "generated": "Carter will lend Mary a box.",
+    "rouge_l_score": 19.05
+  },
+  {
+    "idx": 32,
+    "source": "Jack: Cocktails later?\nMay: YES!!!\nMay: You read my mind...\nJack: Possibly a little tightly strung today?\nMay: Sigh... without question.\nJack: Thought so.\nMay: A little drink will help!\nJack: Maybe two!",
+    "reference": "Jack and May will drink cocktails later.",
+    "generated": "Jack will have a drink with May later.",
+    "rouge_l_score": 53.33
+  },
+  {
+    "idx": 89,
+    "source": "Tom: Ben. We've decided. 2pm in the Oval Room.\nBen: Ok, I'll be there\nTom: Take all your papers, it's going to be a fight! And remember: take no prisoners, shoot to kill!\nBen: hahaha, we have to win this battle.\nTom: We will, the justice is on our side.",
+    "reference": "Tom will meet Ben in the Oval Room at 2pm and tells him to bring the papers. ",
+    "generated": "Tom and Ben will meet at 2 pm in the Oval Room.",
+    "rouge_l_score": 48.28
+  },
+  {
+    "idx": 95,
+    "source": "Flo: OMG, I can't get into the salon until the 6th!\nGina: What? Why?\nFlo: They're just too busy. I'm going to be gray! LOL!\nGina: Get you a touch-up kit at Tesco!\nFlo: Gonna have to!",
+    "reference": "Flo cannot get an appointment at the salon until the 6th. Flo worries she's going to be gray. Flo will have to get a touch-up kit at Tesco.",
+    "generated": "Flo can't get into the salon until the 6th. Gina will get her a touch-up kit at Tesco.",
+    "rouge_l_score": 60.0
+  },
+  {
+    "idx": 104,
+    "source": "Randolph: Honey\nRandolph: Are you still in the pharmacy?\nMaya: Yes\nRandolph: Buy me some earplugs please\nMaya: How many pairs?\nRandolph: 4 or 5 packs\nMaya: I'll get you 5\nRandolph: Thanks darling",
+    "reference": "Maya will buy 5 packs of earplugs for Randolph at the pharmacy.",
+    "generated": "Randolph will buy some earplugs for Maya.",
+    "rouge_l_score": 42.11
+  },
+  {
+    "idx": 114,
+    "source": "Lincoln: Heeyyy ;* whats up\nFatima: I talked to Jenson, he’s not too happy ;p\nLincoln: the place sucks??\nFatima: No, the place is ok, I think, we can go there, it’s about Alene\nLincoln: typical, dont worry about it\nFatima: He thinks she may have a depression :[\nLincoln: nothin new, everyone has it, she needs a doctor then\nFatima: But she won’t go ;/\nLincoln: so she’s destroying her life fuck it its not your problem\nFatima: It is, they’re both my friends!\nLincoln: you better think what to do if they break up\nFatima: Ehh yes Ill have a problem ;//\nLincoln: both blaming each other and talking with you about it, perfect\nFatima: Alene is just troubled… She’d been through a lot…\nLincoln: everyone has their problems, the question is are ya doin sth about them\nFatima: She has problems facing it, don’t be surprised :[\nLincoln: then it is her problem\nFatima: You are so cruel at times… o.O\nLincoln: maybe, for me its just a common sense\nFatima: Why can’t everyone be just happy???\nLincoln: youll not understand, you had good childhood, nice parents, you have no idea\nFatima: Probably, true… Well I can be just grateful o.o\nLincoln: do that and stop worrying about others, youre way to bautful for that <3\nFatima: :*:*:*",
+    "reference": "Fatima is worried about Jenson and Alene. Alene has issues. Lincoln doesn't want Fatima to worry about others too much.",
+    "generated": "Lincoln and Fatima are going to go to Alene's place.",
+    "rouge_l_score": 18.75
+  },
+  {
+    "idx": 142,
+    "source": "Harry: heyyyy are you there??\nCindy: Yes dear what is it?\nHarry: Can you call Ela and tell her i need to talk urgent please pick my call.\nCindy: what happened now? an other fight :O\nHarry: please tell her\nCindy: MAN! you guys... am i some kind of a messenger service here?\nHarry: PLEASEEEEEEEEE ?\nCindy: ok doing.... but thats the last time.\nHarry: Yes like always:P\nCindy: Hate you seriously man.\nHarry: Thank you\nCindy: Done you can call her now.",
+    "reference": "Ela is not taking Harry's phone calls. Cindy calls Ela at Harry's request.",
+    "generated": "Harry will call Ela and tell her about the other fight.",
+    "rouge_l_score": 23.08
+  },
+  {
+    "idx": 223,
+    "source": "Jessica: I went to the second hand shop downtown \nFrank: Cool\nRaphael: What did you get?\nJessica: Lots of stuff\nJessica: A table, six chairs, a vase, a pile of clothes\nFrank: That's really a lot of stuff :-)\nRaphael: send us pictures\nJessica: <photo_file>\nJessica: <photo_file>\nRaphael: Beautiful table\nRaphael: Is it wood?\nJessica: yes, oak \nRaphael: Awesome\nJessica: <photo_file>\nFrank: These are the clothes?\nFrank: I love the black dress\nJessica: It's absolutely beautiful\nJessica: As soon as I saw it I knew it would be mine\nJessica: I'm so happy with what I bought\nJessica: And the best is I paid only 70 euros for all of that!! ",
+    "reference": "Jessica bought a table, six chairs, a vase and a pile of clothes and the second hand shop downtown. She paid 70 euros for everything. ",
+    "generated": "Jessica went to the second hand shop downtown. She bought a table, six chairs, a vase, a pile of clothes and a black dress.",
+    "rouge_l_score": 53.06
+  },
+  {
+    "idx": 228,
+    "source": "Emily: fancy a drink after work today?\nKate: sure!\nMarta: Good idea! \nMarta: Where? When?\nEmily: Maybe in the Pub X at the central station at 5.30?\nKate: I may be closer to 6, traffic on my way\nMarta: Fine for me.\nMarta: See you then, Ladies!\nEmily: Bye! see ya :*\nKate: :*",
+    "reference": "Emily, Kate and Marta are going to the Pub X at the central station today for a drink.",
+    "generated": "Emily and Kate are going to have a drink after work at the Pub X at 5.30.",
+    "rouge_l_score": 50.0
+  },
+  {
+    "idx": 250,
+    "source": "Shaldona: WE ARE GONNA GET MARRIED ❤️❤️\nShaldona: <file_others>\nShaldona: This is our mobile inviation for our wedding.\nShaldona: Invitation*\nPiper: Hey. You haven’t sent me any messages for a few years.\nPiper: And now you are sending me your wedding invitation \nPiper: THROUGH MESSENGER?\nShaldona: .....\nShaldona: Well..\nShaldona: I had no enough time to meet everybody and give this in person.\nShaldona: Hope you understand.\nPiper: If you don't have time to give the invitation card in person but expect people go to your wedding\nPiper: Shaldona, if so, you are too greedy.",
+    "reference": "Shaldona sends mobile invitations to her wedding, as she has no time to give them in person.",
+    "generated": "Shaldona sent Piper her mobile inviation for their wedding.",
+    "rouge_l_score": 23.08
+  },
+  {
+    "idx": 281,
+    "source": "Abby: Have you talked to Miro?\nDylan: No, not really, I've never had an opportunity\nBrandon: me neither, but he seems a nice guy\nBrenda: you met him yesterday at the party?\nAbby: yes, he's so interesting\nAbby: told me the story of his father coming from Albania to the US in the early 1990s\nDylan: really, I had no idea he is Albanian\nAbby: he is, he speaks only Albanian with his parents\nDylan: fascinating, where does he come from in Albania?\nAbby: from the seacoast\nAbby: Duress I believe, he told me they are not from Tirana\nDylan: what else did he tell you?\nAbby: That they left kind of illegally\nAbby: it was a big mess and extreme poverty everywhere\nAbby: then suddenly the border was open and they just left \nAbby: people were boarding available ships, whatever, just to get out of there\nAbby: he showed me some pictures, like <file_photo>\nDylan: insane\nAbby: yes, and his father was among the people\nDylan: scary but interesting\nAbby: very!",
+    "reference": "Miro speaks Albanian with his parents. His family left Albania illegally in 1990s.",
+    "generated": "Miro told Abby the story of his father coming from Albania to the US in the early 1990s.",
+    "rouge_l_score": 32.26
+  },
+  {
+    "idx": 432,
+    "source": "Javier: Hey do you know any tattoo parlors over here with English speaking employees?\nJudie: Oh there's Warsaw ink\nJavier: the name sounds neat... have you had a tattoo done there?\nJudie: nope but my gf has\nJavier: got a pic?\nJudie: <file_photo>\nJavier: wow that looks amazing\nJavier: how much did she pay?\nJudie: it was a 1000\nJavier: fuck\nJavier: let me just get a tatttoo back in colombia then, thx",
+    "reference": "Javier was initially eager to have a tatoo done at Warsaw Ink but the price turned out to be too high. Javier decided to have a tatoo done in Colombia.",
+    "generated": "Judie has a tattoo done at Warsaw ink parlors. Her gf got a 1000 tattoo.",
+    "rouge_l_score": 26.67
+  },
+  {
+    "idx": 558,
+    "source": "Blair: Remember we are seeing the wedding planner after work\nChuck: Sure, where are we meeting her?\nBlair: At Nonna Rita's\nChuck: Can I order their seafood tagliatelle or are we just having coffee with her? I've been dreaming about it since we went there last month\nBlair: Haha sure why not\nChuck: Well we both remmber the spaghetti pomodoro disaster from our last meeting with Diane\nBlair: Omg hahaha it was all over her white blouse\nChuck: :D\nBlair: :P",
+    "reference": "Blair and Chuck are going to meet the wedding planner after work at Nonna Rita's. The tagliatelle served at Nonna Rita's are very good.",
+    "generated": "Blair and Chuck are meeting the wedding planner after work at Nonna Rita's. They will order seafood tagliatelle and have coffee with her.",
+    "rouge_l_score": 60.0
+  },
+  {
+    "idx": 604,
+    "source": "Milena: How was the presentation?\nKate: very good\nRegina: yes, we had a good feedback\nMilena: how many people came to listen to you?\nRegina: 3 but we new it will be very cosy, friendly thing\nMilena: sometimes a small but interested audience is better than random bored people\nKate: exactly",
+    "reference": "Kate, Milena and Regina's presentation went well. Three people came to listen to them.",
+    "generated": "Milena had a good feedback on the presentation. 3 people came to listen to Regina.",
+    "rouge_l_score": 46.67
+  },
+  {
+    "idx": 654,
+    "source": "Richie: Pogba\nClay: Pogboom\nRichie: what a s strike yoh!\nClay: was off the seat the moment he chopped the ball back to his right foot\nRichie: me too dude\nClay: hope his form lasts\nRichie: This season he's more mature\nClay: Yeah, Jose has his trust in him\nRichie: everyone does\nClay: yeah, he really deserved to score after his first 60 minutes\nRichie: reward\nClay: yeah man\nRichie: cool then \nClay: cool",
+    "reference": "Richie and Clay saw a very good football game, with one football player chopping the ball back to his foot, which was particularly exciting. Jose has trust in that player. ",
+    "generated": "Pogba scored the first goal of the season. He deserved to score after his first 60 minutes.",
+    "rouge_l_score": 12.77
+  },
+  {
+    "idx": 692,
+    "source": "Tina: Hey, Facebook is constantly non stop suggesting Patrick\nDemi: Hahahahaha \nTina: I think I have to catch a bit of your approach\nDemi: He's a god. What do you mean...?\nTina: I have to learn how to transfer from hating men to fucking them haha\nDemi: (Y)\nTina: as soon as possible\nDemi: Haha! Yeah. I did it, you're right. But i worked on it hard after a huge heartbreak\nTina: <file_gif>\nDemi: (Y) currently i like men. you have to be chilled with them ;)\nTina: <file_gif>\nDemi: :D maybe its a mistake... i dont know. Lets organize workshops on that :D\nTina: I only like one type :D yes plz do it haha\nDemi: Done! but maybe you should chill a bit, look around for ather types ...and see what happens\nTina: I only dont what my mood depend so much on other people\nDemi: I know! I know it well!\nTina: this renting case is eating me\nDemi: you have to isolate one bit inside that will be always independent\nTina: we have to meet, crazy girl!\nDemi: for sure. if youre homeless i will take under my roof\nTina: between the guyshaha\nDemi: we ll find something\nTina: <3",
+    "reference": "Tina has to learn Demi's approach how to transfer from hating men to dating them.",
+    "generated": "Tina wants to learn how to transfer from hating men to fucking them. Demi wants to organize workshops on that.",
+    "rouge_l_score": 61.11
+  },
+  {
+    "idx": 754,
+    "source": "Val: it's raining!\nCandy: I know, just started...\nVal: r we going? we will be wet\nCandy: maybe wait a little? see if stops\nVal: ok. let's wait half h and than see\nCandy: god idea, I call u then\nVal: great :)",
+    "reference": "It's raining, so Val and Candy will wait half an hour before they go.",
+    "generated": "It's raining. Candy and Val are going to wait for the rain to stop.",
+    "rouge_l_score": 33.33
+  },
+  {
+    "idx": 758,
+    "source": "Tomas: Has anybody received the grant yet?\nSierra: no, not yet\nJeremy: I haven't checked even\nTomas: I'm completely broke\nTomas: checking my bank account every hour\nTomas: but nothing's happening there\nSierra: lol\nSierra: be patient. If you need money I can lend you some, don't worry\nTomas: Thanks, I hope they'll arrive any minute",
+    "reference": "Tomas, Sierra and Jeremy have still not received the grant. Tomas is broke and is checking his bank account every hour. Sierra offers to lend him some money.",
+    "generated": "Sierra hasn't received the grant yet. Jeremy hasn't checked his bank account. Sierra will lend him some money.",
+    "rouge_l_score": 54.17
+  },
+  {
+    "idx": 759,
+    "source": "Charles: What are you up to this weekend?\nCamilla: Not much. Just some work and errands on Saturday, show Saturday night. Day of nothingness on Sundy.\nCharles: Sounds good. We are going to visit the German markets this weekend. Birmingham and Manchester both. Sausage overload!\nCamilla: Ooh, that sounds really good!\nCharles: Allegedly there are Christmas things going on but I just go for the sausage and beer!\nCamilla: What a shocker.\nCharles: I know!\nCamilla: I'll have to try to get there this year. I've not been for ages.\nCharles: Oh, yeah, they are good. Try the mulled wine too. That's nice.\nCamilla: Never had it. Is it served hot?\nCharles: Yes, exactly. And lots of spices. Usually a red but sometimes they offer a mulled white.\nCamilla: I'm good with red.\nCharles: Inspired us to make our own at Christmas last year, but nobody else drank it.\nCamilla: Bummer!\nCharles: More for me! But oh the hangover.\nCamilla: LOL!\nCharles: Anyway, that's the plan. Hope you have fun.\nCamilla: You too! \nCharles: Thanks!",
+    "reference": "Camilla has some errands to do on Saturday. Charles is visiting the German markets this weekend. They are talking about Christmas food and drinks.",
+    "generated": "Charles and Camilla are going to visit the German markets this weekend. They are going for sausage and beer. Charles will try the mulled wine.",
+    "rouge_l_score": 44.9
+  }
+]

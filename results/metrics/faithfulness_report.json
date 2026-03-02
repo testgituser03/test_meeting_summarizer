@@ -1,0 +1,12 @@
+{
+  "model": "facebook/bart-base",
+  "variant": "with_speakers",
+  "n_samples": 819,
+  "hallucination_rate": 0.1013,
+  "avg_speaker_preservation": 0.7552,
+  "avg_nli_faithfulness": 0.3084,
+  "length_rouge_correlation": -0.2514,
+  "evaluation_timestamp": "2026-03-02T20:22:08.153567+00:00",
+  "hallucinated_examples_count": 83,
+  "examples_with_speakers": 817
+}
