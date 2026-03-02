@@ -185,7 +185,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         MODEL_NAME,
-        torch_dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,
+        dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,
     ).to(device)
 
     n_params      = sum(p.numel() for p in model.parameters()) / 1e6
@@ -248,13 +248,13 @@ def main() -> None:
     )
 
     trainer = Seq2SeqTrainer(
-        model           = model,
-        args            = training_args,
-        train_dataset   = ds["train"],
-        eval_dataset    = ds["validation"],
-        tokenizer       = tokenizer,
-        data_collator   = data_collator,
-        compute_metrics = make_compute_metrics(tokenizer),
+        model              = model,
+        args               = training_args,
+        train_dataset      = ds["train"],
+        eval_dataset       = ds["validation"],
+        processing_class   = tokenizer,
+        data_collator      = data_collator,
+        compute_metrics    = make_compute_metrics(tokenizer),
         callbacks       = [
             EarlyStoppingCallback(
                 early_stopping_patience=cfg["early_stopping_patience"]
