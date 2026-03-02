@@ -1,0 +1,32 @@
+# Model weights / checkpoints
+models/
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Dataset + HF caches (keep local)
+data/cache/
+.cache/
+**/.cache/
+
+# HuggingFace local artifacts
+.huggingface/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# VS Code (optional)
+.vscode/settings.json
+
+# Secrets
+.env
+*.token
+
