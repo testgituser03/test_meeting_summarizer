@@ -1,0 +1,15 @@
+{
+  "model": "facebook/bart-base",
+  "n_samples": 100,
+  "rouge1": 27.3393,
+  "rouge2": 8.8694,
+  "rougeL": 19.8903,
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0,
+    "early_stopping": true,
+    "task_prefix": ""
+  },
+  "timestamp": "2026-03-02T13:57:53.268628+00:00"
+}

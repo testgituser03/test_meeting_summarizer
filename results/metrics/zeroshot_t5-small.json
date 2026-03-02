@@ -1,0 +1,15 @@
+{
+  "model": "t5-small",
+  "n_samples": 100,
+  "rouge1": 27.6004,
+  "rouge2": 7.6326,
+  "rougeL": 22.1884,
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0,
+    "early_stopping": true,
+    "task_prefix": "summarize: "
+  },
+  "timestamp": "2026-03-02T13:56:53.348539+00:00"
+}
