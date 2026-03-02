@@ -5,8 +5,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Model ─────────────────────────────────────────────────────────────────────
-model_name: "t5-small"                # E1 architecture run; restore "facebook/bart-base" after this run
-task_prefix: "summarize: "             # T5 requires this prefix; BART: set back to ""
+model_name: "facebook/bart-base"       # E1 architecture run (primary model); T5-small complete
+task_prefix: ""                        # BART: no task prefix; T5 uses "summarize: "
 
 # ── Tokenization ──────────────────────────────────────────────────────────────
 max_source_length: 512                 # Covers 99%+ of SAMSum dialogues (p99 ≈ 380 T5 tokens)

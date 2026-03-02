@@ -162,10 +162,30 @@ def main() -> None:
         EarlyStoppingCallback,
         Seq2SeqTrainer,
         Seq2SeqTrainingArguments,
+        TrainerCallback,
         set_seed,
     )
 
     set_seed(cfg["seed"])
+
+    # ── MPS memory callback: records driver-allocated MB after epoch 1 eval ──
+    # on_evaluate() is called by Seq2SeqTrainer at the end of each epoch's
+    # validation run — the first call captures peak memory after the GPU graph
+    # has been compiled and a full forward+generate pass has been executed.
+    class _MpsMemoryCallback(TrainerCallback):  # noqa: PLC0415
+        """Record MPS driver-allocated memory after the first evaluation call."""
+        def __init__(self) -> None:
+            self.post_epoch1_mb: float = 0.0
+            self._recorded: bool = False
+
+        def on_evaluate(self, args, state, control, **kwargs):  # noqa: ANN001
+            if not self._recorded:
+                self.post_epoch1_mb = mps_memory_mb()
+                self._recorded = True
+                print(f"  MPS memory (post-epoch1): {self.post_epoch1_mb:.1f} MB")
+
+    memory_cb  = _MpsMemoryCallback()
+
     device     = get_device()
     MODEL_NAME = cfg["model_name"]
     VARIANT    = cfg["dataset_variant"]
@@ -262,7 +282,8 @@ def main() -> None:
         callbacks       = [
             EarlyStoppingCallback(
                 early_stopping_patience=cfg["early_stopping_patience"]
-            )
+            ),
+            memory_cb,
         ],
     )
 
@@ -285,7 +306,8 @@ def main() -> None:
     training_time_sec = time.time() - train_start
     training_time_min = training_time_sec / 60.0
 
-    mem_post_train = mps_memory_mb()
+    mem_post_train  = mps_memory_mb()
+    mem_post_epoch1 = memory_cb.post_epoch1_mb  # 0.0 if training aborted before first eval
     print(f"\n  Training complete.")
     print(f"  Wall time        : {training_time_min:.1f} min  ({training_time_sec:.0f}s)")
     print(f"  MPS memory (post): {mem_post_train:.1f} MB")
@@ -327,6 +349,12 @@ def main() -> None:
         "training_time_minutes": round(training_time_min, 2),
         "best_epoch":            best_epoch,
         "best_val_rougeL":       round(float(best_val_rl), 4) if best_val_rl else None,
+        "memory_profile_mb": {
+            "pre_load":    round(mem_pre_load,    1),
+            "post_load":   round(mem_post_load,   1),
+            "post_epoch1": round(mem_post_epoch1, 1),
+            "post_train":  round(mem_post_train,  1),
+        },
         "generation_config": {
             "num_beams":      cfg["num_beams"],
             "max_new_tokens": cfg["max_target_length"],
