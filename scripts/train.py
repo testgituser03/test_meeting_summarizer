@@ -16,19 +16,24 @@ Usage:
   python3 scripts/train.py --model facebook/bart-base --variant no_speakers
 """
 
+# ── CRITICAL: Set MPS fallback BEFORE torch is imported ─────────────────────
+# Must be the very first executable statement — even a bare `import torch`
+# initialises the MPS driver, making any subsequent setenv a no-op.
+# "1" = CPU fallback for unsupported MPS ops (safe for seq2seq edge cases).
+# "0" = strict mode (crash on unsupported op) — enable once loop is MPS-clean.
+import os
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
 import argparse
 import json
-import os
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import torch
 import yaml
-
-# Strict MPS mode: crash on unsupported ops rather than silent CPU fallback.
-# Set to "1" in config or shell if you hit "MPS not supported" errors.
-os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "0")
 
 
 def load_config(path: str) -> dict:
@@ -43,26 +48,89 @@ def get_device() -> torch.device:
     return torch.device("cpu")
 
 
+def mps_memory_mb() -> float:
+    """Return MPS driver-allocated memory in MB; 0.0 if MPS is unavailable."""
+    if torch.backends.mps.is_available():
+        return torch.mps.driver_allocated_memory() / 1e6
+    return 0.0
+
+
+def _best_epoch_from_history(log_history: list) -> float:
+    """
+    Scan trainer.state.log_history to find the epoch at which eval_rougeL
+    peaked.  Returns 0.0 if no eval entries are present (e.g. early abort).
+    Early stopping fires when rougeL fails to improve for `patience` epochs;
+    best_epoch will typically be 2–4 for T5-small on SAMSum.
+    """
+    best_rl    = -1.0
+    best_epoch = 0.0
+    for entry in log_history:
+        if "eval_rougeL" in entry and entry["eval_rougeL"] > best_rl:
+            best_rl    = entry["eval_rougeL"]
+            best_epoch = entry.get("epoch", 0.0)
+    return best_epoch
+
+
 def make_compute_metrics(tokenizer):
-    """Return a compute_metrics function bound to the given tokenizer."""
-    from evaluate import load as load_metric  # noqa: PLC0415
-    rouge = load_metric("rouge")
+    """
+    Return a compute_metrics closure for Seq2SeqTrainer.
+
+    Called after EVERY validation epoch (training eval path) AND by
+    trainer.predict() for the final test evaluation (test eval path).
+    Both paths use beam-search generation because predict_with_generate=True
+    is set in Seq2SeqTrainingArguments — the same generate() call, same
+    num_beams / max_new_tokens.  Scores are directly comparable between the
+    two paths and are NOT inflated by teacher forcing.
+
+    Implementation contract
+    ───────────────────────
+    • predict_with_generate=True → eval_preds.predictions are integer token
+      IDs produced by model.generate(), NOT softmax logits.
+    • Labels contain -100 (Transformers ignore-index) at padded positions;
+      must be replaced with tokenizer.pad_token_id before decoding.
+    • ROUGE: macro-average F-measure across all samples (equal weight per
+      sample, no length bias).  Consistent with baseline_zeroshot.py.
+    • use_stemmer=True: Porter stemming ("running" → "run").  Standard for
+      SAMSum leaderboard and published BART/T5 SAMSum results.
+    • Values × 100 → 0–100 scale for human-readable Trainer log lines.
+    """
+    from rouge_score import rouge_scorer as _rs  # noqa: PLC0415
+
+    _scorer = _rs.RougeScorer(
+        ["rouge1", "rouge2", "rougeL"], use_stemmer=True
+    )
 
     def compute_metrics(eval_preds):
         preds, labels = eval_preds
-        # -100 is the ignore index; replace before decoding
+
+        # Step 1: Replace -100 (ignore index) with pad_token_id.
+        # Without this, tokenizer.batch_decode raises on the out-of-vocab -100.
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-        decoded_preds  = tokenizer.batch_decode(preds,   skip_special_tokens=True)
+
+        # Step 2: Decode token IDs → strings.
+        # skip_special_tokens=True removes pad / eos / bos / sentinel tokens.
+        decoded_preds  = tokenizer.batch_decode(preds,  skip_special_tokens=True)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-        decoded_preds  = [p.strip() for p in decoded_preds]
-        decoded_labels = [l.strip() for l in decoded_labels]
-        result = rouge.compute(
-            predictions=decoded_preds,
-            references=decoded_labels,
-            use_stemmer=True,
-        )
-        # Multiply by 100 and round to 4 dp; rouge_score returns 0–1
-        return {k: round(v * 100, 4) for k, v in result.items()}
+
+        # Step 3: Strip leading/trailing whitespace.
+        # T5 SentencePiece tokenizer occasionally prefixes decoded text with " ".
+        decoded_preds  = [p.strip()  for p in decoded_preds]
+        decoded_labels = [lb.strip() for lb in decoded_labels]
+
+        # Step 4: Compute macro-average ROUGE F-measure.
+        r1_vals, r2_vals, rL_vals = [], [], []
+        for pred, ref in zip(decoded_preds, decoded_labels):
+            s = _scorer.score(ref, pred)
+            r1_vals.append(s["rouge1"].fmeasure)
+            r2_vals.append(s["rouge2"].fmeasure)
+            rL_vals.append(s["rougeL"].fmeasure)
+
+        n = max(len(r1_vals), 1)  # guard: avoid ZeroDivisionError on empty batch
+        return {
+            "rouge1": round(sum(r1_vals) / n * 100, 4),
+            "rouge2": round(sum(r2_vals) / n * 100, 4),
+            "rougeL": round(sum(rL_vals) / n * 100, 4),
+        }
 
     return compute_metrics
 
@@ -102,20 +170,28 @@ def main() -> None:
     print(f"\n{'='*62}")
     print(f"  Fine-tuning  : {MODEL_NAME}")
     print(f"  Variant      : {VARIANT}")
+    print(f"  run_name     : {run_name}")
     print(f"  Device       : {device}  |  BF16: {cfg['use_bf16']}")
+    print(f"  MPS fallback : {os.environ.get('PYTORCH_ENABLE_MPS_FALLBACK', 'unset')}")
     print(f"{'='*62}\n")
 
-    # ── Model + tokenizer ──────────────────────────────────────────────────
+    # ── Memory baseline (before model load) ───────────────────────────────
+    mem_pre_load = mps_memory_mb()
+    print(f"  MPS memory (pre-load)  : {mem_pre_load:.1f} MB")
+
+    # ── Model + tokenizer ───────────────────────────────────────────────
+    # Init with torch_dtype=bfloat16 BEFORE .to(device) to avoid a transient
+    # FP32 copy in memory when converting an already-loaded FP32 model to MPS.
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         MODEL_NAME,
         torch_dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,
     ).to(device)
 
-    n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"  Parameters : {n_params:.1f}M")
-    if device.type == "mps":
-        print(f"  MPS memory : {torch.mps.driver_allocated_memory() / 1e6:.1f} MB  (post-load)")
+    n_params      = sum(p.numel() for p in model.parameters()) / 1e6
+    mem_post_load = mps_memory_mb()
+    print(f"  Parameters             : {n_params:.1f}M")
+    print(f"  MPS memory (post-load) : {mem_post_load:.1f} MB")
 
     # ── Dataset ────────────────────────────────────────────────────────────
     dataset_path = (
@@ -187,41 +263,94 @@ def main() -> None:
     )
 
     # ── Train ──────────────────────────────────────────────────────────────
-    print(f"\n  Starting training  (up to {cfg['num_epochs']} epochs)...\n")
-    trainer.train()
+    # Epoch 1 is slower: MPSGraph compiles and caches Metal GPU kernels on
+    # first execution.  T5-small estimate: epoch 1 ≈ 7–9 min, epochs 2+
+    # ≈ 4–6 min (graph cache warm).  BART-base: epoch 1 ≈ 14–18 min, 2+
+    # ≈ 10–13 min.  Early stopping at epoch 3 or 4 is EXPECTED and CORRECT
+    # — it signals convergence, not failure.  Record best_epoch from JSON.
+    print(f"\n  Starting training  ({MODEL_NAME}, {VARIANT})")
+    print(f"  Max epochs       : {cfg['num_epochs']}  "
+          f"(early stopping patience: {cfg['early_stopping_patience']})")
+    print(f"  Batch size       : {cfg['batch_size']}  "
+          f"|  LR: {cfg['learning_rate']}  "
+          f"|  Warmup: {cfg['warmup_steps']} steps")
+    print(f"  MPS memory (pre) : {mps_memory_mb():.1f} MB\n")
 
-    # ── Save best ──────────────────────────────────────────────────────────
+    train_start = time.time()
+    trainer.train()
+    training_time_sec = time.time() - train_start
+    training_time_min = training_time_sec / 60.0
+
+    mem_post_train = mps_memory_mb()
+    print(f"\n  Training complete.")
+    print(f"  Wall time        : {training_time_min:.1f} min  ({training_time_sec:.0f}s)")
+    print(f"  MPS memory (post): {mem_post_train:.1f} MB")
+
+    # ── Save best model ─────────────────────────────────────────────────────
     trainer.save_model(str(best_dir))
     tokenizer.save_pretrained(str(best_dir))
-    print(f"\n  Best model saved → {best_dir.relative_to(project_root)}")
+    print(f"  Best model saved → {best_dir.relative_to(project_root)}")
 
-    # ── Evaluate on test set ───────────────────────────────────────────────
-    print("  Evaluating on test set...")
-    test_output = trainer.predict(ds["test"])
-    metrics = make_compute_metrics(tokenizer)(
+    # ── Extract best epoch from training history ────────────────────────────
+    best_epoch  = _best_epoch_from_history(trainer.state.log_history)
+    best_val_rl = trainer.state.best_metric   # rougeL on validation, 0–100 scale
+    print(f"  Best epoch       : {best_epoch}")
+    if best_val_rl:
+        print(f"  Best val rougeL  : {best_val_rl:.4f}")
+
+    # ── Test set evaluation ─────────────────────────────────────────────────
+    # trainer.predict() uses model.generate() because predict_with_generate=True
+    # is set in Seq2SeqTrainingArguments.  This is the SAME generation path as
+    # validation eval: beam=4, max_new_tokens=128 from training_args.
+    # Scores are directly comparable to per-epoch validation rougeL values.
+    print(f"\n  Evaluating on test split ({len(ds['test']):,} examples)...")
+    compute_metrics_fn = make_compute_metrics(tokenizer)
+    test_output  = trainer.predict(ds["test"])
+    test_metrics = compute_metrics_fn(
         (test_output.predictions, test_output.label_ids)
     )
-    metrics.update({
-        "model":               MODEL_NAME,
-        "variant":             VARIANT,
-        "epochs_trained":      round(trainer.state.epoch, 2),
-        "best_val_rougeL":     trainer.state.best_metric,
-    })
+
+    # ── Build and write output JSON ─────────────────────────────────────────
+    result_json = {
+        "model":                 MODEL_NAME,
+        "variant":               VARIANT,
+        "dataset":               cfg["dataset_name"],
+        "split":                 "test",
+        "n_samples":             len(ds["test"]),
+        "rouge1":                test_metrics["rouge1"],
+        "rouge2":                test_metrics["rouge2"],
+        "rougeL":                test_metrics["rougeL"],
+        "training_time_minutes": round(training_time_min, 2),
+        "best_epoch":            best_epoch,
+        "best_val_rougeL":       round(float(best_val_rl), 4) if best_val_rl else None,
+        "generation_config": {
+            "num_beams":      cfg["num_beams"],
+            "max_new_tokens": cfg["max_target_length"],
+            "length_penalty": cfg["length_penalty"],
+            "early_stopping": cfg["early_stopping_beam"],
+        },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
     out_path = metrics_dir / f"{run_name}_test.json"
     with open(out_path, "w") as fh:
-        json.dump(metrics, fh, indent=2)
+        json.dump(result_json, fh, indent=2)
 
     print(f"\n{'='*62}")
-    print("  Test ROUGE Results")
-    for k in ["rouge1", "rouge2", "rougeL", "rougeLsum"]:
-        if k in metrics:
-            print(f"    {k:>10} : {metrics[k]:.2f}")
-    print(f"\n  Saved → {out_path.relative_to(project_root)}")
+    print(f"  Test ROUGE Results — {MODEL_NAME} ({VARIANT})")
+    print(f"{'='*62}")
+    print(f"  ROUGE-1 : {test_metrics['rouge1']:.2f}")
+    print(f"  ROUGE-2 : {test_metrics['rouge2']:.2f}")
+    print(f"  ROUGE-L : {test_metrics['rougeL']:.2f}")
+    print(f"\n  Training time : {training_time_min:.1f} min")
+    print(f"  Best epoch    : {best_epoch}")
+    print(f"  Saved JSON    → {out_path.relative_to(project_root)}")
     print(f"{'='*62}\n")
 
+    # ── Cleanup ─────────────────────────────────────────────────────────────
     if device.type == "mps":
         torch.mps.empty_cache()
+        print(f"  MPS memory (post-cleanup): {mps_memory_mb():.1f} MB")
 
 
 if __name__ == "__main__":
