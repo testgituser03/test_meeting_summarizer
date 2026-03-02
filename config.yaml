@@ -55,4 +55,4 @@ save_total_limit: 2                    # Retain only 2 checkpoints on disk; ≈ 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
 dataset_name: "knkarthick/samsum"      # HuggingFace Hub ID; pre-downloaded to local cache
-dataset_variant: "no_speakers"         # E2 ablation: no_speakers (only change vs E1); revert to "with_speakers" after E2
+dataset_variant: "with_speakers"      # restored for E3 decoding ablation (E1/E3 baseline)

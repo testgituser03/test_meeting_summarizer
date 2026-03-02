@@ -1,0 +1,19 @@
+{
+  "config_id": "D5",
+  "label": "nucleus_p0.9",
+  "description": "nucleus sampling: top_p=0.9, temperature=0.8 (stochastic baseline)",
+  "rouge1": 45.4235,
+  "rouge2": 19.5476,
+  "rougeL": 35.9333,
+  "avg_summary_tokens": 18.76,
+  "ms_per_sample": 92.2,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 1,
+    "do_sample": true,
+    "top_p": 0.9,
+    "temperature": 0.8,
+    "length_penalty": 1.0
+  }
+}

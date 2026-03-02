@@ -1,0 +1,99 @@
+{
+  "experiment": "E3 decoding strategy ablation",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "n_samples": 819,
+  "best_rougeL_config": "beam4_lp1.2",
+  "configs": [
+    {
+      "config_id": "D1",
+      "label": "beam4_lp0.8",
+      "description": "4 beams, length_penalty=0.8 \u2014 favours shorter outputs",
+      "rouge1": 47.3935,
+      "rouge2": 22.8025,
+      "rougeL": 39.4884,
+      "avg_summary_tokens": 15.2,
+      "ms_per_sample": 138.23,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 0.8,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D2",
+      "label": "beam4_lp1.0 (baseline)",
+      "description": "4 beams, length_penalty=1.0 \u2014 identical to training config",
+      "rouge1": 48.0373,
+      "rouge2": 23.3293,
+      "rougeL": 39.9185,
+      "avg_summary_tokens": 15.88,
+      "ms_per_sample": 136.22,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.0,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D3",
+      "label": "beam4_lp1.2",
+      "description": "4 beams, length_penalty=1.2 \u2014 favours longer outputs",
+      "rouge1": 48.331,
+      "rouge2": 23.35,
+      "rougeL": 39.9728,
+      "avg_summary_tokens": 16.67,
+      "ms_per_sample": 136.12,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.2,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D4",
+      "label": "beam8_lp1.0",
+      "description": "8 beams, length_penalty=1.0 \u2014 wider search, ~2\u00d7 compute cost",
+      "rouge1": 47.7324,
+      "rouge2": 23.2672,
+      "rougeL": 39.736,
+      "avg_summary_tokens": 15.81,
+      "ms_per_sample": 220.41,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 8,
+        "length_penalty": 1.0,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D5",
+      "label": "nucleus_p0.9",
+      "description": "nucleus sampling: top_p=0.9, temperature=0.8 (stochastic baseline)",
+      "rouge1": 45.4235,
+      "rouge2": 19.5476,
+      "rougeL": 35.9333,
+      "avg_summary_tokens": 18.76,
+      "ms_per_sample": 92.2,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 1,
+        "do_sample": true,
+        "top_p": 0.9,
+        "temperature": 0.8,
+        "length_penalty": 1.0
+      }
+    }
+  ]
+}

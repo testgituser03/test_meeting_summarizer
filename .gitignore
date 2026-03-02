@@ -30,3 +30,6 @@ __pycache__/
 # Secrets
 .env
 *.token
+
+train_t5small.log
+train_bartbase.log

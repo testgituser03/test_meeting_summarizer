@@ -1,0 +1,26 @@
+{
+  "model": "facebook/bart-base",
+  "variant": "with_speakers",
+  "dataset": "knkarthick/samsum",
+  "split": "test",
+  "n_samples": 819,
+  "rouge1": 47.8631,
+  "rouge2": 23.2175,
+  "rougeL": 39.8524,
+  "training_time_minutes": 72.4,
+  "best_epoch": 5.0,
+  "best_val_rougeL": 41.5748,
+  "memory_profile_mb": {
+    "pre_load": 0.5,
+    "post_load": 1082.6,
+    "post_epoch1": 16643.4,
+    "post_train": 16957.8
+  },
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-02T16:49:25.918209+00:00"
+}

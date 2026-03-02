@@ -1,0 +1,18 @@
+{
+  "config_id": "D1",
+  "label": "beam4_lp0.8",
+  "description": "4 beams, length_penalty=0.8 \u2014 favours shorter outputs",
+  "rouge1": 47.3935,
+  "rouge2": 22.8025,
+  "rougeL": 39.4884,
+  "avg_summary_tokens": 15.2,
+  "ms_per_sample": 138.23,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 0.8,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

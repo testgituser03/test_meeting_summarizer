@@ -49,6 +49,11 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 os.environ.setdefault("HF_DATASETS_OFFLINE",   "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE",   "1")
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR_STR = str(SCRIPT_DIR)
+if sys.path and sys.path[0] == SCRIPT_DIR_STR:
+    sys.path.pop(0)
+
 
 # ── Experiment 3 configurations ────────────────────────────────────────────────
 # Control variable: generation kwargs only.
@@ -259,9 +264,11 @@ def main() -> None:
             preds = tokenizer.batch_decode(generated, skip_special_tokens=True)
 
             # Decode references (replace -100 padding before decoding)
-            labels_np = np.array(batch["labels"])
-            labels_np = np.where(labels_np != -100, labels_np, tokenizer.pad_token_id)
-            refs = tokenizer.batch_decode(labels_np.tolist(), skip_special_tokens=True)
+            labels_list = [
+                [tokenizer.pad_token_id if token == -100 else token for token in seq]
+                for seq in batch["labels"]
+            ]
+            refs = tokenizer.batch_decode(labels_list, skip_special_tokens=True)
 
             all_preds.extend([p.strip() for p in preds])
             all_refs.extend([r.strip()  for r in refs])
