@@ -1,0 +1,19 @@
+{
+  "config_id": "D11",
+  "label": "beam4_lp1.2_minlen5",
+  "description": "4 beams, lp=1.2, min_length=5 \u2014 force longer summaries",
+  "rouge1": 48.3033,
+  "rouge2": 23.4042,
+  "rougeL": 39.9746,
+  "avg_summary_tokens": 16.68,
+  "ms_per_sample": 137.37,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.2,
+    "do_sample": false,
+    "early_stopping": true,
+    "min_length": 5
+  }
+}

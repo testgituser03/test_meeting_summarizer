@@ -189,7 +189,7 @@ def main() -> None:
     device     = get_device()
     MODEL_NAME = cfg["model_name"]
     VARIANT    = cfg["dataset_variant"]
-    run_name   = f"{MODEL_NAME.replace('/', '_')}_{VARIANT}"
+    run_name   = cfg.get("run_name", f"{MODEL_NAME.replace('/', '_')}_{VARIANT}")
 
     print(f"\n{'='*62}")
     print(f"  Fine-tuning  : {MODEL_NAME}")
@@ -259,6 +259,7 @@ def main() -> None:
         dataloader_num_workers      = cfg["dataloader_num_workers"],
         dataloader_pin_memory       = cfg["dataloader_pin_memory"],
         save_total_limit            = cfg["save_total_limit"],
+        lr_scheduler_type           = cfg.get("lr_scheduler_type", "linear"),
         seed                        = cfg["seed"],
         report_to                   = "none",
         run_name                    = run_name,

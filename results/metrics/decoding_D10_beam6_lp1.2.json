@@ -1,0 +1,18 @@
+{
+  "config_id": "D10",
+  "label": "beam6_lp1.2",
+  "description": "6 beams, length_penalty=1.2 \u2014 wider search at optimal lp",
+  "rouge1": 48.1359,
+  "rouge2": 23.3597,
+  "rougeL": 40.031,
+  "avg_summary_tokens": 16.66,
+  "ms_per_sample": 178.11,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 6,
+    "length_penalty": 1.2,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

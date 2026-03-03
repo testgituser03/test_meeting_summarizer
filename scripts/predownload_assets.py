@@ -45,6 +45,7 @@ def main() -> None:
     _ensure_hf_token_env()
     _download_model("t5-small")
     _download_model("facebook/bart-base")
+    _download_model("google/pegasus-cnn_dailymail")
 
     print("Downloading SAMSum dataset...")
     ds = load_dataset("knkarthick/samsum")

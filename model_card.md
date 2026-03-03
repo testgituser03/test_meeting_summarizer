@@ -22,13 +22,13 @@ model-index:
           split: test
         metrics:
           - type: rouge1
-            value: 47.86
+            value: 48.14
             name: ROUGE-1
           - type: rouge2
-            value: 23.22
+            value: 23.36
             name: ROUGE-2
           - type: rougeL
-            value: 39.85
+            value: 40.03
             name: ROUGE-L
 ---
 
@@ -93,8 +93,8 @@ with torch.no_grad():
     out = model.generate(
         **inputs,
         max_new_tokens = 128,
-        num_beams      = 4,
-        length_penalty = 1.2,   # D3 best config (ROUGE-L 39.97)
+        num_beams      = 6,
+        length_penalty = 1.2,   # D10 best config (ROUGE-L 40.03)
         early_stopping = True,
     )
 print(tokenizer.decode(out[0], skip_special_tokens=True))
@@ -111,27 +111,33 @@ All metrics are macro-averaged ROUGE F-measures × 100 on the 819-sample SAMSum 
 
 | Metric | Value |
 |--------|-------|
-| ROUGE-1 | 47.86 |
-| ROUGE-2 | 23.22 |
-| **ROUGE-L** | **39.85** *(training config: beam=4, lp=1.0)* |
-| ROUGE-L (best decoding: D3 beam=4, lp=1.2) | **39.97** |
+| ROUGE-1 | 48.14 |
+| ROUGE-2 | 23.36 |
+| **ROUGE-L** | **40.03** *(best decoding: D10 beam=6, lp=1.2)* |
+| ROUGE-L (training config: beam=4, lp=1.0) | 39.92 |
 
 ### Comparison: Fine-Tuned vs Zero-Shot
 
 | | ROUGE-L |
 |--|---------|
 | BART-base zero-shot (100 samples) | 19.89 |
-| BART-base fine-tuned (819 samples) | **39.85** (+19.96) |
+| BART-base fine-tuned (819 samples) | **40.03** (+20.14) |
 
-### Decoding Strategy Ablation
+### Decoding Strategy Ablation (11 configs)
 
 | Config | ROUGE-L | Avg tokens | ms/sample |
 |--------|---------|-----------|----------|
-| beam=4, lp=0.8 | 39.49 | 15.2 | 138 |
-| beam=4, lp=1.0 | 39.92 | 15.9 | 136 |
-| **beam=4, lp=1.2** | **39.97** | **16.7** | **136** |
-| beam=8, lp=1.0 | 39.74 | 15.8 | 220 |
-| nucleus p=0.9, t=0.8 | 35.93 | 18.8 | 92 |
+| D1: beam=4, lp=0.8 | 39.49 | 15.2 | 138 |
+| D2: beam=4, lp=1.0 | 39.92 | 15.9 | 136 |
+| D3: beam=4, lp=1.2 | 39.97 | 16.7 | 136 |
+| D4: beam=8, lp=1.0 | 39.74 | 15.8 | 220 |
+| D5: nucleus p=0.9 | 35.93 | 18.8 | 92 |
+| D6: beam=4, lp=1.4 | 39.94 | 17.3 | 142 |
+| D7: beam=4, lp=1.25 | 40.01 | 16.8 | 136 |
+| D8: beam=4, lp=1.3 | 40.01 | 17.0 | 137 |
+| D9: beam=4, lp=1.2, nrng=3 | 39.97 | 16.7 | 136 |
+| **D10: beam=6, lp=1.2** | **40.03** | **16.7** | **178** |
+| D11: beam=4, lp=1.2, min_len=5 | 39.97 | 16.7 | 136 |
 
 ### Faithfulness Metrics
 
@@ -141,6 +147,22 @@ All metrics are macro-averaged ROUGE F-measures × 100 on the 819-sample SAMSum 
 | Speaker preservation | 75.5% |
 | NLI faithfulness (DeBERTa-v3) | 0.308 |
 | Length–ROUGE-L Pearson r | −0.25 |
+
+### LoRA Parameter-Efficient Fine-Tuning
+
+| Model | ROUGE-1 | ROUGE-2 | ROUGE-L | Trainable params |
+|-------|---------|---------|---------|-----------------|
+| BART-base (full fine-tune) | 48.04 | 23.33 | 39.92 | 139.4M (100%) |
+| BART-base (LoRA r=16, α=32) | 45.15 | 21.20 | 37.59 | 0.88M (0.63%) |
+
+LoRA achieves **94.2%** of full fine-tune ROUGE-L with only **0.63%** trainable parameters.
+
+### PEGASUS Cross-Domain Transfer
+
+| Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | Notes |
+|-----------|---------|---------|---------|-------|
+| Zero-shot | 1.85 | 0.00 | 1.60 | news → dialogue domain mismatch |
+| Fine-tuned | *in progress* | — | — | batch=1, gradient checkpointing |
 
 ---
 

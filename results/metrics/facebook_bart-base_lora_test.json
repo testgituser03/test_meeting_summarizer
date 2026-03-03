@@ -1,0 +1,32 @@
+{
+  "model": "facebook/bart-base",
+  "variant": "lora",
+  "dataset": "knkarthick/samsum",
+  "split": "test",
+  "n_samples": 819,
+  "rouge1": 45.1469,
+  "rouge2": 21.2043,
+  "rougeL": 37.5859,
+  "training_time_minutes": 54.69,
+  "best_epoch": 5.0,
+  "best_val_rougeL": 38.4321,
+  "lora_config": {
+    "r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ],
+    "trainable_pct": 0.63
+  },
+  "memory_profile_mb": {
+    "post_load": 12719.8
+  },
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0
+  },
+  "timestamp": "2026-03-03T17:35:44.877774+00:00"
+}

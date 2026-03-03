@@ -1,0 +1,19 @@
+{
+  "config_id": "D9",
+  "label": "beam4_lp1.2_nrng3",
+  "description": "4 beams, lp=1.2, no_repeat_ngram_size=3 \u2014 suppress repetition",
+  "rouge1": 48.269,
+  "rouge2": 23.3656,
+  "rougeL": 39.9673,
+  "avg_summary_tokens": 16.67,
+  "ms_per_sample": 136.42,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.2,
+    "do_sample": false,
+    "early_stopping": true,
+    "no_repeat_ngram_size": 3
+  }
+}

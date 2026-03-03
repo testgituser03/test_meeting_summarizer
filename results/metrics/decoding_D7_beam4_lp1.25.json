@@ -1,0 +1,18 @@
+{
+  "config_id": "D7",
+  "label": "beam4_lp1.25",
+  "description": "4 beams, length_penalty=1.25 \u2014 fine-grained sweep near D3 peak",
+  "rouge1": 48.4371,
+  "rouge2": 23.3796,
+  "rougeL": 40.0056,
+  "avg_summary_tokens": 16.8,
+  "ms_per_sample": 135.85,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.25,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

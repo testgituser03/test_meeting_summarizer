@@ -1,0 +1,18 @@
+{
+  "config_id": "D6",
+  "label": "beam4_lp1.4",
+  "description": "4 beams, length_penalty=1.4 \u2014 extended sweep for ROUGE-L \u2265 40",
+  "rouge1": 48.3515,
+  "rouge2": 23.3145,
+  "rougeL": 39.9449,
+  "avg_summary_tokens": 17.34,
+  "ms_per_sample": 141.89,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.4,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

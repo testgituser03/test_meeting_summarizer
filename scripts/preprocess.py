@@ -80,6 +80,60 @@ def make_preprocess_no_speakers_fn(tokenizer, max_source: int, max_target: int, 
     return preprocess_no_speakers
 
 
+def make_preprocess_split_speakers_fn(
+    tokenizer, max_source: int, max_target: int, task_prefix: str, stride: int = 256
+):
+    """Return a preprocessing function that splits long dialogues into overlapping windows.
+
+    For dialogues that tokenize to > max_source tokens, this creates multiple
+    training examples using a sliding window with the given stride. Each window
+    gets the same summary label. Short dialogues (≤ max_source tokens) pass
+    through unchanged (single example).
+
+    This helps the model learn from the full content of long conversations that
+    would otherwise be truncated.
+    """
+
+    def preprocess_split_speakers(batch: dict) -> dict:
+        all_input_ids: list[list[int]] = []
+        all_labels:    list[list[int]] = []
+
+        for dialogue, summary in zip(batch["dialogue"], batch["summary"]):
+            # Tokenize full dialogue without truncation
+            full_input = task_prefix + dialogue
+            full_tokens = tokenizer(
+                full_input,
+                truncation=False,
+                padding=False,
+                return_attention_mask=False,
+            )["input_ids"]
+
+            # Tokenize summary (always within max_target)
+            label_tokens = tokenizer(
+                text_target=summary,
+                max_length=max_target,
+                truncation=True,
+                padding=False,
+            )["input_ids"]
+
+            if len(full_tokens) <= max_source:
+                # Short dialogue — no splitting needed
+                all_input_ids.append(full_tokens)
+                all_labels.append(label_tokens)
+            else:
+                # Long dialogue — sliding window with overlap
+                for start in range(0, len(full_tokens), stride):
+                    window = full_tokens[start : start + max_source]
+                    if len(window) < 32:  # skip tiny trailing fragments
+                        break
+                    all_input_ids.append(window)
+                    all_labels.append(label_tokens)
+
+        return {"input_ids": all_input_ids, "labels": all_labels}
+
+    return preprocess_split_speakers
+
+
 def main() -> None:
     # Enforce offline mode BEFORE any HuggingFace imports — all assets must
     # already be cached in ~/.cache/huggingface/ by predownload_assets.py.
@@ -93,7 +147,7 @@ def main() -> None:
         "--variants",
         nargs="+",
         default=["with_speakers", "no_speakers"],
-        choices=["with_speakers", "no_speakers"],
+        choices=["with_speakers", "no_speakers", "split_speakers"],
     )
     args = parser.parse_args()
 
@@ -128,6 +182,7 @@ def main() -> None:
     variant_fns = {
         "with_speakers": make_preprocess_fn(tokenizer, MAX_SOURCE_LEN, MAX_TARGET_LEN, TASK_PREFIX),
         "no_speakers":   make_preprocess_no_speakers_fn(tokenizer, MAX_SOURCE_LEN, MAX_TARGET_LEN, TASK_PREFIX),
+        "split_speakers": make_preprocess_split_speakers_fn(tokenizer, MAX_SOURCE_LEN, MAX_TARGET_LEN, TASK_PREFIX, stride=256),
     }
 
     model_slug = MODEL_NAME.replace("/", "_")
@@ -140,11 +195,15 @@ def main() -> None:
 
         print(f"  Processing '{variant}'...")
         fn = variant_fns[variant]
+
+        # split_speakers changes example count (sliding windows), so we must
+        # use batched=True with remove_columns and allow the function to
+        # return a different number of rows than the input.
         tokenized = ds_raw.map(
             fn,
             batched=True,
             remove_columns=ds_raw["train"].column_names,
-            load_from_cache_file=True,   # reuse HF's internal .map() cache if available
+            load_from_cache_file=True,
             desc=f"Tokenizing ({variant})",
         )
         tokenized.save_to_disk(str(out_path))

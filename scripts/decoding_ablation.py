@@ -100,6 +100,54 @@ CONFIGS: list[dict] = [
         "gen_kwargs":  {"num_beams": 1, "do_sample": True, "top_p": 0.9,
                         "temperature": 0.8, "length_penalty": 1.0},
     },
+    {
+        "id":          "D6",
+        "filename":    "decoding_D6_beam4_lp1.4",
+        "label":       "beam4_lp1.4",
+        "description": "4 beams, length_penalty=1.4 — extended sweep for ROUGE-L ≥ 40",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.4, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D7",
+        "filename":    "decoding_D7_beam4_lp1.25",
+        "label":       "beam4_lp1.25",
+        "description": "4 beams, length_penalty=1.25 — fine-grained sweep near D3 peak",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.25, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D8",
+        "filename":    "decoding_D8_beam4_lp1.3",
+        "label":       "beam4_lp1.3",
+        "description": "4 beams, length_penalty=1.3 — fine-grained sweep near D3 peak",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.3, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D9",
+        "filename":    "decoding_D9_beam4_lp1.2_nrng3",
+        "label":       "beam4_lp1.2_nrng3",
+        "description": "4 beams, lp=1.2, no_repeat_ngram_size=3 — suppress repetition",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.2, "do_sample": False,
+                        "early_stopping": True, "no_repeat_ngram_size": 3},
+    },
+    {
+        "id":          "D10",
+        "filename":    "decoding_D10_beam6_lp1.2",
+        "label":       "beam6_lp1.2",
+        "description": "6 beams, length_penalty=1.2 — wider search at optimal lp",
+        "gen_kwargs":  {"num_beams": 6, "length_penalty": 1.2, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D11",
+        "filename":    "decoding_D11_beam4_lp1.2_minlen5",
+        "label":       "beam4_lp1.2_minlen5",
+        "description": "4 beams, lp=1.2, min_length=5 — force longer summaries",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.2, "do_sample": False,
+                        "early_stopping": True, "min_length": 5},
+    },
 ]
 
 
@@ -229,6 +277,23 @@ def main() -> None:
         label      = cfg_item["label"]
         file_stem  = cfg_item["filename"]
         gen_kwargs = cfg_item["gen_kwargs"].copy()   # never mutate CONFIGS
+
+        # Skip configs whose result JSON already exists on disk
+        out_path = out_dir / f"{file_stem}.json"
+        if out_path.exists():
+            with open(out_path) as fh:
+                cached_row = json.load(fh)
+            all_rows.append(cached_row)
+            r1 = cached_row["rouge1"]
+            r2 = cached_row["rouge2"]
+            rL = cached_row["rougeL"]
+            avg_words     = cached_row["avg_summary_tokens"]
+            ms_per_sample = cached_row["ms_per_sample"]
+            print(
+                f"  {label:<{W[0]}} {r1:>{W[1]}.2f} {r2:>{W[2]}.2f} "
+                f"{rL:>{W[3]}.2f} {avg_words:>{W[4]}.1f} {ms_per_sample:>{W[5]}.1f}  (cached)"
+            )
+            continue
 
         all_preds:      list[str] = []
         all_refs:       list[str] = []

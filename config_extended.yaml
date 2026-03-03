@@ -1,0 +1,66 @@
+# config_extended.yaml — Extended training configuration for BART-base.
+# ─────────────────────────────────────────────────────────────────────────────
+# Changes from config.yaml:
+#   - num_epochs: 5 → 8  (more training budget)
+#   - early_stopping_patience: 2 → 3  (allow longer convergence)
+#   - lr_scheduler_type: linear → cosine  (smoother decay)
+#   - warmup_steps: 500 → 300  (faster ramp for lower LR)
+#   - learning_rate: 5e-5 → 3e-5  (lower peak for longer training)
+#   - dataset_variant: with_speakers  (forced for this run)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model_name: "facebook/bart-base"
+task_prefix: ""
+
+# ── Tokenization ──────────────────────────────────────────────────────────────
+max_source_length: 512
+max_target_length: 128
+
+# ── Training (CHANGED) ───────────────────────────────────────────────────────
+batch_size: 8
+learning_rate: 3.0e-5               # ← lower peak for longer schedule
+weight_decay: 0.01
+num_epochs: 8                        # ← increased from 5
+warmup_steps: 300                    # ← reduced for lower LR
+gradient_clip_max_norm: 1.0
+
+# ── Decoding / Generation ─────────────────────────────────────────────────────
+num_beams: 4
+length_penalty: 1.0
+early_stopping_beam: true
+
+# ── Early Stopping (Training, CHANGED) ────────────────────────────────────────
+early_stopping_patience: 3           # ← increased from 2
+metric_for_best_model: "rougeL"
+load_best_model_at_end: true
+greater_is_better: true
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+evaluation_strategy: "epoch"
+save_strategy: "epoch"
+predict_with_generate: true
+
+# ── Optimization (CHANGED) ───────────────────────────────────────────────────
+use_bf16: true
+use_fp16: false
+optimizer: "adamw"
+lr_scheduler_type: "cosine"          # ← changed from linear
+
+# ── Hardware Constraints (M4 Pro MPS) ─────────────────────────────────────────
+dataloader_num_workers: 0
+dataloader_pin_memory: false
+dataloader_prefetch_factor: 2
+
+# ── Reproducibility ───────────────────────────────────────────────────────────
+seed: 42
+
+# ── Checkpointing ─────────────────────────────────────────────────────────────
+save_total_limit: 2
+
+# ── Dataset (FORCED) ──────────────────────────────────────────────────────────
+dataset_name: "knkarthick/samsum"
+dataset_variant: "with_speakers"
+
+# ── Run Name Override ──────────────────────────────────────────────────────────
+run_name: "facebook_bart-base_extended"

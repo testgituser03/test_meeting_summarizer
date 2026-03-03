@@ -101,6 +101,27 @@ def load_results(metrics_dir: Path) -> list[dict]:
     return zeroshot_rows + finetuned_rows
 
 
+def load_decoding_results(metrics_dir: Path) -> list[dict]:
+    """Load E3 decoding ablation summary if available."""
+    summary_path = metrics_dir / "experiment_3_decoding_summary.json"
+    data = _load_json_safe(summary_path)
+    if data is None:
+        return []
+    rows = []
+    for c in data.get("configs", []):
+        rows.append({
+            "config_id": c.get("config_id", "?"),
+            "label":     c.get("label", "?"),
+            "rouge1":    float(c.get("rouge1", 0)),
+            "rouge2":    float(c.get("rouge2", 0)),
+            "rougeL":    float(c.get("rougeL", 0)),
+            "avg_words": float(c.get("avg_summary_tokens", 0)),
+            "ms_sample": float(c.get("ms_per_sample", 0)),
+            "n_samples": int(c.get("n_samples", 0)),
+        })
+    return rows
+
+
 # ── Formatting helpers ─────────────────────────────────────────────────────────
 
 def _fmt(val: object, decimals: int = 2) -> str:
@@ -283,6 +304,78 @@ def main() -> None:
 
     # ── Delta + flags ──────────────────────────────────────────────────────
     compute_deltas_and_flags(rows)
+
+    # ── E3 Decoding ablation ──────────────────────────────────────────────
+    decoding_rows = load_decoding_results(metrics_dir)
+    if decoding_rows:
+        print(f"\n{'='*62}")
+        print("  Experiment 3 — Decoding Strategy Ablation (11 configs)")
+        print(f"{'='*62}\n")
+        print(f"  {'ID':<4} {'Config':<30} {'R-1':>7} {'R-2':>7} {'R-L':>7} {'ms':>6}")
+        print(f"  {'-'*4} {'-'*30} {'-'*7} {'-'*7} {'-'*7} {'-'*6}")
+        best_rl = max(r["rougeL"] for r in decoding_rows)
+        for r in decoding_rows:
+            marker = " ★" if r["rougeL"] == best_rl else ""
+            print(
+                f"  {r['config_id']:<4} {r['label']:<30} "
+                f"{r['rouge1']:>7.2f} {r['rouge2']:>7.2f} {r['rougeL']:>7.2f} "
+                f"{r['ms_sample']:>6.0f}{marker}"
+            )
+        print(f"\n  ★ Best ROUGE-L: {best_rl:.2f}")
+        print()
+
+    # ── E5 LoRA experiment ─────────────────────────────────────────────────
+    lora_rows = [r for r in rows if r.get("variant") == "lora"]
+    if lora_rows:
+        print(f"\n{'='*62}")
+        print("  Experiment 5 — LoRA Parameter-Efficient Fine-Tuning")
+        print(f"{'='*62}\n")
+        # Load LoRA-specific metadata from JSON if available
+        lora_json = _load_json_safe(metrics_dir / "facebook_bart-base_lora_test.json")
+        for r in lora_rows:
+            print(f"  Model    : {r['model']}")
+            print(f"  ROUGE-1  : {r['rouge1']:.2f}")
+            print(f"  ROUGE-2  : {r['rouge2']:.2f}")
+            print(f"  ROUGE-L  : {r['rougeL']:.2f}")
+            print(f"  N samples: {r['n_samples']}")
+            if lora_json:
+                lora_cfg = lora_json.get("lora_config", {})
+                trainable_pct = lora_cfg.get("trainable_pct", "—")
+                r_rank = lora_cfg.get("r", "—")
+                alpha = lora_cfg.get("lora_alpha", "—")
+                mem_profile = lora_json.get("memory_profile_mb", {})
+                mem = mem_profile.get("post_load", "—")
+                train_min = lora_json.get("training_time_minutes", "—")
+                print(f"  LoRA r   : {r_rank}  alpha: {alpha}  trainable: {trainable_pct}%")
+                print(f"  Memory   : {mem} MB")
+                print(f"  Time     : {train_min} min")
+        # Compare LoRA vs full fine-tune
+        bart_ft = next((r for r in rows if r["model"] == "facebook/bart-base"
+                        and r["variant"] == "with_speakers"
+                        and r["training"] == "fine-tuned"), None)
+        if bart_ft and lora_rows:
+            lr = lora_rows[0]
+            pct = (lr["rougeL"] / bart_ft["rougeL"]) * 100 if bart_ft["rougeL"] > 0 else 0
+            print(f"\n  LoRA achieves {pct:.1f}% of full fine-tune ROUGE-L "
+                  f"({lr['rougeL']:.2f} vs {bart_ft['rougeL']:.2f})")
+        print()
+
+    # ── E4 PEGASUS cross-domain ────────────────────────────────────────────
+    pegasus_rows = [r for r in rows if "pegasus" in r.get("model", "").lower()]
+    if pegasus_rows:
+        print(f"\n{'='*62}")
+        print("  Experiment 4 — PEGASUS Cross-Domain Transfer")
+        print(f"{'='*62}\n")
+        for r in pegasus_rows:
+            print(f"  {r['training']:<12}  R-1={r['rouge1']:.2f}  "
+                  f"R-2={r['rouge2']:.2f}  R-L={r['rougeL']:.2f}  "
+                  f"N={r['n_samples']}")
+        zs = next((r for r in pegasus_rows if r["training"] == "zero-shot"), None)
+        ft = next((r for r in pegasus_rows if r["training"] == "fine-tuned"), None)
+        if zs and ft:
+            gain = ft["rougeL"] - zs["rougeL"]
+            print(f"\n  Domain adaptation gain: +{gain:.2f} ROUGE-L")
+        print()
 
     # ── CSV ───────────────────────────────────────────────────────────────
     out_path = metrics_dir.parent / "experiment_1_architecture.csv"

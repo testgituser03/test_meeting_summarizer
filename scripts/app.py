@@ -29,7 +29,30 @@ import yaml
 # ── Paths ──────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH  = PROJECT_ROOT / "config.yaml"
-MODEL_PATH   = str(PROJECT_ROOT / "models" / "best" / "facebook_bart-base_with_speakers")
+
+# ── Available model checkpoints (discovered dynamically) ───────────────────────
+_MODEL_REGISTRY: dict[str, str] = {}
+
+def _discover_models() -> dict[str, str]:
+    """Scan models/best/ for available checkpoints and return {label: path}."""
+    best_dir = PROJECT_ROOT / "models" / "best"
+    registry: dict[str, str] = {}
+    if not best_dir.exists():
+        return registry
+
+    # Priority order of model checkpoints
+    candidates = [
+        ("BART-base (with_speakers)", "facebook_bart-base_with_speakers"),
+        ("BART-base LoRA",            "facebook_bart-base_lora"),
+        ("BART-base (no_speakers)",   "facebook_bart-base_no_speakers"),
+        ("T5-small (with_speakers)",  "t5-small_with_speakers"),
+        ("PEGASUS (with_speakers)",   "google_pegasus-cnn_dailymail_with_speakers"),
+    ]
+    for label, dirname in candidates:
+        ckpt_path = best_dir / dirname
+        if ckpt_path.exists():
+            registry[label] = str(ckpt_path)
+    return registry
 
 # ── Regex patterns (per spec) ──────────────────────────────────────────────────
 _MODAL_PATTERN  = r"\b(will|going to|needs? to|should|must|have to)\s+\w[\w\s]{4,40}"
@@ -59,16 +82,16 @@ def _load_config() -> dict:
 # ── Cached resource loaders (one call per Streamlit session) ───────────────────
 
 @st.cache_resource(show_spinner="⏳ Loading model weights (once per session)…")
-def _load_model():
-    """Load tokenizer + model onto MPS (or CPU). Called once; result is reused."""
+def _load_model(model_path: str):
+    """Load tokenizer + model onto MPS (or CPU). Called once per model; result is reused."""
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM  # noqa: PLC0415
 
     cfg    = _load_config()
     device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
     dtype  = torch.bfloat16 if cfg.get("use_bf16", True) else torch.float32
 
-    tok = AutoTokenizer.from_pretrained(MODEL_PATH)
-    mdl = AutoModelForSeq2SeqLM.from_pretrained(MODEL_PATH, dtype=dtype).to(device)
+    tok = AutoTokenizer.from_pretrained(model_path)
+    mdl = AutoModelForSeq2SeqLM.from_pretrained(model_path, dtype=dtype).to(device)
     mdl.eval()
     return tok, mdl, device, dtype, cfg
 
@@ -158,19 +181,35 @@ def main() -> None:
 
     st.title("📝 Meeting Summarizer")
     st.caption(
-        "Fine-tuned `facebook/bart-base` on SAMSum · "
-        "Apple M4 Pro · BF16 / MPS · ROUGE-L **39.97**"
+        "Fine-tuned seq2seq models on SAMSum · "
+        "Apple M4 Pro · BF16 / MPS"
     )
 
-    # Load resources (cached; no-op on subsequent clicks)
-    if not Path(MODEL_PATH).exists():
+    # ── Sidebar: model selector ───────────────────────────────────────────
+    models = _discover_models()
+    if not models:
         st.error(
-            f"Model not found at `{MODEL_PATH}`. "
+            "No model checkpoints found in `models/best/`. "
             "Run `python3 scripts/train.py` first, then restart the app."
         )
         st.stop()
 
-    tokenizer, model, device, dtype, cfg = _load_model()
+    with st.sidebar:
+        st.header("🔧 Configuration")
+        model_label = st.selectbox(
+            "Model",
+            options=list(models.keys()),
+            index=0,
+            help="Select a trained checkpoint to use for inference.",
+        )
+        model_path = models[model_label]
+
+        st.divider()
+        st.caption(f"**Checkpoint:** `{Path(model_path).name}`")
+        st.caption(f"**Available models:** {len(models)}")
+
+    # Load resources (cached per model_path; no-op on subsequent clicks)
+    tokenizer, model, device, dtype, cfg = _load_model(model_path)
     nlp = _load_nlp()
 
     # ── Two equal columns ─────────────────────────────────────────────────
@@ -196,8 +235,8 @@ def main() -> None:
             )
             length_penalty = st.selectbox(
                 "Length penalty",
-                options = [0.8, 1.0, 1.2],
-                index   = 1,
+                options = [0.8, 1.0, 1.2, 1.25, 1.3, 1.4],
+                index   = 2,
                 help    = (
                     "< 1.0 favours shorter outputs; > 1.0 favours longer outputs. "
                     "D3 (lp=1.2) achieved best ROUGE-L=39.97 in E3."
@@ -255,8 +294,8 @@ def main() -> None:
             # ── Generation info ───────────────────────────────────────────
             st.markdown("**ℹ️ Generation Info**")
             st.json({
-                "model"         : "facebook/bart-base",
-                "variant"       : "with_speakers",
+                "model"         : model_label,
+                "checkpoint"    : Path(model_path).name,
                 "device"        : str(device),
                 "dtype"         : str(dtype),
                 "num_beams"     : num_beams,

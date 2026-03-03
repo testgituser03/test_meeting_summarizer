@@ -1,0 +1,15 @@
+{
+  "model": "google/pegasus-cnn_dailymail",
+  "n_samples": 100,
+  "rouge1": 1.85,
+  "rouge2": 0.0,
+  "rougeL": 1.6,
+  "generation_config": {
+    "num_beams": 4,
+    "length_penalty": 1.0,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "elapsed_seconds": 68.9,
+  "timestamp": "2026-03-03T17:42:05.998444+00:00"
+}
