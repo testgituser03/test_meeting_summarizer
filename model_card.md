@@ -23,19 +23,22 @@ model-index:
         metrics:
           - type: rouge1
             value: 48.14
-            name: ROUGE-1
+            name: ROUGE-1 (D10 beam=6, lp=1.2)
           - type: rouge2
             value: 23.36
-            name: ROUGE-2
+            name: ROUGE-2 (D10 beam=6, lp=1.2)
           - type: rougeL
             value: 40.03
-            name: ROUGE-L
+            name: ROUGE-L (D10 beam=6, lp=1.2)
 ---
 
 # bart-base-samsum-summarizer
 
 `facebook/bart-base` fine-tuned on the [SAMSum](https://huggingface.co/datasets/knkarthick/samsum)
 dialogue summarization corpus.
+
+> **Note:** Front-matter ROUGE scores reflect the best decoding config (D10: beam=6, length_penalty=1.2).
+> Default generation config (beam=4, lp=1.0) yields ROUGE-1=47.86, ROUGE-2=23.22, ROUGE-L=39.85.
 
 > **⚠️ License**: SAMSum is released under **CC BY-NC-ND 4.0** (non-commercial, no derivatives).
 > This model card, the model weights, and any outputs produced with them are

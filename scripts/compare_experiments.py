@@ -221,23 +221,58 @@ def compute_deltas_and_flags(rows: list[dict]) -> None:
     else:
         print("\n  ⏳ No fine-tuned results found yet. Run training first.")
 
-    # ── 2. Sanity check: fine-tuned must beat zero-shot by ≥10 ROUGE-1 ─────
+    # ── 2. PEGASUS-vs-BART delta (cross-domain transfer analysis) ──────────
+    peg_ft = idx.get(("google/pegasus-cnn_dailymail", "with_speakers", "fine-tuned"))
+    if peg_ft and bart_ft:
+        print(f"\n{'─'*62}")
+        print("  Δ Analysis — PEGASUS vs BART (both fine-tuned, with_speakers)")
+        print(f"{'─'*62}")
+        δr1 = peg_ft["rouge1"] - bart_ft["rouge1"]
+        δr2 = peg_ft["rouge2"] - bart_ft["rouge2"]
+        δrL = peg_ft["rougeL"] - bart_ft["rougeL"]
+        print(f"\n  Δ ROUGE (PEGASUS fine-tuned − BART fine-tuned):")
+        print(f"    ROUGE-1  :  {_sign(δr1)}{δr1:.2f}")
+        print(f"    ROUGE-2  :  {_sign(δr2)}{δr2:.2f}")
+        print(f"    ROUGE-L  :  {_sign(δrL)}{δrL:.2f}")
+        if δrL > 0:
+            print(f"\n  ✅ PEGASUS outperforms BART by {δrL:.2f} ROUGE-L pts")
+        else:
+            print(f"\n  ℹ️  BART outperforms PEGASUS by {abs(δrL):.2f} ROUGE-L pts")
+            print(f"     (expected: PEGASUS pre-trained on news, SAMSum is dialogue)")
+
+    # ── 3. Extended training delta ──────────────────────────────────────────
+    bart_ext = idx.get(("facebook/bart-base", "extended", "fine-tuned"))
+    if not bart_ext:
+        # Also check for run_name match
+        bart_ext = next((r for r in rows if "extended" in str(r.get("variant", "")).lower()
+                         and r.get("training") == "fine-tuned"), None)
+    if bart_ext and bart_ft:
+        print(f"\n{'─'*62}")
+        print("  Δ Analysis — Extended Training vs Base Training")
+        print(f"{'─'*62}")
+        δrL = bart_ext["rougeL"] - bart_ft["rougeL"]
+        print(f"\n  Base training  ROUGE-L: {bart_ft['rougeL']:.2f}")
+        print(f"  Extended (8ep) ROUGE-L: {bart_ext['rougeL']:.2f}")
+        print(f"  Δ ROUGE-L: {_sign(δrL)}{δrL:.2f}")
+
+    # ── 4. Sanity check: fine-tuned must beat zero-shot by ≥10 ROUGE-1 ─────
     print(f"\n  Sanity check — fine-tuned ROUGE-1 vs zero-shot baseline")
     print(f"  Threshold: ≥ +10.0 pts. Failure → training loop may be broken.\n")
 
-    for model in ["t5-small", "facebook/bart-base"]:
+    sanity_models = ["t5-small", "facebook/bart-base", "google/pegasus-cnn_dailymail"]
+    for model in sanity_models:
         zs = idx.get((model, "—",            "zero-shot"))
         ft = idx.get((model, "with_speakers", "fine-tuned"))
         if zs is None:
-            print(f"    ⏳  {model:<30}  zero-shot baseline missing — skipping")
+            print(f"    ⏳  {model:<36}  zero-shot baseline missing — skipping")
             continue
         if ft is None:
-            print(f"    ⏳  {model:<30}  fine-tuned result missing — skipping")
+            print(f"    ⏳  {model:<36}  fine-tuned result missing — skipping")
             continue
         gain = ft["rouge1"] - zs["rouge1"]
         flag = "✅" if gain >= 10.0 else "❌"
         print(
-            f"    {flag}  {model:<30}  "
+            f"    {flag}  {model:<36}  "
             f"zero-shot={zs['rouge1']:.2f}  "
             f"fine-tuned={ft['rouge1']:.2f}  "
             f"Δ={gain:+.2f}"
