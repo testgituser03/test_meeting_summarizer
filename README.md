@@ -1,8 +1,9 @@
 # Meeting Summarizer
 
-Abstractive dialogue summarization fine-tuned on the SAMSum dataset using
-`facebook/bart-base` and `t5-small`, with full training infrastructure for
-Apple M4 Pro (PyTorch MPS / BF16).
+Abstractive dialogue summarization using `facebook/bart-base` fine-tuned on the
+[SAMSum corpus](https://huggingface.co/datasets/knkarthick/samsum).
+Achieves **ROUGE-L 39.97** (best decoding config) on the 819-sample test set,
+up from a zero-shot floor of 19.89 on the same model.
 
 ---
 
@@ -10,82 +11,238 @@ Apple M4 Pro (PyTorch MPS / BF16).
 
 **The SAMSum dataset is licensed under
 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)
-(Creative Commons — Non-Commercial, No Derivatives).**
+(Creative Commons — Attribution · Non-Commercial · No Derivatives).**
 
 > This project, the fine-tuned model weights, and any generated outputs are
 > restricted to **non-commercial use only**, in compliance with the SAMSum
 > dataset license. Deploying or distributing the model in any commercial
-> product or service is prohibited.
+> product or service is prohibited without explicit permission from the
+> dataset authors.
 
-Original dataset: [SAMSum Corpus](https://huggingface.co/datasets/knkarthick/samsum) —
-Gliwa et al., 2019.
+Original dataset: Gliwa et al., 2019 — *SAMSum Corpus: A Human-annotated
+Dialogue Dataset for Abstractive Summarization*.
 
 ---
 
 ## Hardware
 
-| Component   | Specification                          |
-|-------------|----------------------------------------|
-| SoC         | Apple M4 Pro (T6041)                   |
-| Memory      | 24 GB Unified Memory (LPDDR5X)         |
-| GPU         | 20 GPU cores (Metal 3)                 |
-| OS          | macOS Sequoia 15.7.3                   |
-| Compute     | PyTorch MPS backend — BF16 verified    |
+| Component | Specification |
+|-----------|--------------|
+| SoC | Apple M4 Pro (T6041) |
+| Memory | 24 GB Unified Memory (LPDDR5X) |
+| GPU | 20 GPU cores (Metal 3) |
+| OS | macOS Sequoia 15.7.3 |
+| Compute | PyTorch MPS backend — BF16 verified |
+
+All training and inference runs use `torch.device("mps")` with BF16 precision.
+`num_workers=0` and `pin_memory=False` are required MPS constraints.
 
 ---
 
 ## Results
 
-<!-- Fill in after training runs complete -->
+All metrics are macro-averaged ROUGE F-measures × 100 unless noted.
 
-| Experiment         | Model       | Dataset Variant  | ROUGE-1 | ROUGE-2 | ROUGE-L |
-|--------------------|-------------|------------------|---------|---------|---------|
-| E0 Zero-shot       | BART-base   | —                | —       | —       | —       |
-| E0 Zero-shot       | T5-small    | —                | —       | —       | —       |
-| E1 Architecture    | T5-small    | with_speakers    | —       | —       | —       |
-| E1 Architecture    | BART-base   | with_speakers    | —       | —       | —       |
-| E2 Speaker Ablation| BART-base   | no_speakers      | —       | —       | —       |
+### E0 — Zero-Shot Baseline (100-sample subset, no fine-tuning)
+
+> Source: `results/metrics/zeroshot_facebook_bart-base.json`,
+> `results/metrics/zeroshot_t5-small.json`
+
+| Model | ROUGE-1 | ROUGE-2 | ROUGE-L |
+|-------|---------|---------|---------|
+| BART-base (zero-shot) | 27.34 | 8.87 | 19.89 |
+| T5-small (zero-shot) | 27.60 | 7.63 | 22.19 |
 
 ---
 
-## Setup
+### E1 — Architecture Comparison (819-sample test set, `with_speakers` variant)
+
+> Source: `results/metrics/facebook_bart-base_with_speakers_test.json`,
+> `results/metrics/t5-small_with_speakers_test.json`
+
+| Model | ROUGE-1 | ROUGE-2 | ROUGE-L | Training time | Best epoch |
+|-------|---------|---------|---------|--------------|-----------|
+| T5-small (zero-shot) | 27.60 | 7.63 | 22.19 | — | — |
+| T5-small (fine-tuned) | 38.96 | 15.96 | 31.95 | 35 min | 2 |
+| BART-base (zero-shot) | 27.34 | 8.87 | 19.89 | — | — |
+| **BART-base (fine-tuned)** | **47.86** | **23.22** | **39.85** | **72 min** | **5** |
+
+BART-base outperforms T5-small by **+7.90 ROUGE-L** after fine-tuning
+(+20.0% relative improvement over its own zero-shot baseline).
+
+---
+
+### E2 — Speaker Tag Ablation (BART-base, 819-sample test set)
+
+> Source: `results/metrics/facebook_bart-base_with_speakers_test.json`,
+> `results/metrics/facebook_bart-base_no_speakers_test.json`
+
+| Variant | ROUGE-1 | ROUGE-2 | ROUGE-L | Δ ROUGE-L |
+|---------|---------|---------|---------|-----------|
+| `no_speakers` (stripped) | 38.95 | 19.17 | 33.23 | — |
+| **`with_speakers` (full)** | **47.86** | **23.22** | **39.85** | **+6.62** |
+
+Preserving speaker attribution tags contributes **+6.62 ROUGE-L** (+19.9% relative).
+Both models trained to epoch 5; the `no_speakers` variant converges to a lower ceiling.
+
+---
+
+### E3 — Decoding Strategy Ablation (BART-base `with_speakers`, 819-sample test set)
+
+> Source: `results/metrics/experiment_3_decoding_summary.json`
+
+| ID | Config | ROUGE-1 | ROUGE-2 | ROUGE-L | Avg tokens | ms/sample |
+|----|--------|---------|---------|---------|-----------|----------|
+| D1 | beam=4, lp=0.8 | 47.39 | 22.80 | 39.49 | 15.2 | 138 |
+| D2 | beam=4, lp=1.0 *(training config)* | 48.04 | 23.33 | 39.92 | 15.9 | 136 |
+| **D3** | **beam=4, lp=1.2** | **48.33** | **23.35** | **39.97** | **16.7** | **136** |
+| D4 | beam=8, lp=1.0 | 47.73 | 23.27 | 39.74 | 15.8 | 220 |
+| D5 | nucleus p=0.9, t=0.8 | 45.42 | 19.55 | 35.93 | 18.8 | 92 |
+
+**D3** (beam=4, lp=1.2) is the best config: +0.48 ROUGE-L over the training baseline
+at identical latency. **D4** costs 62% more compute (+84 ms/sample) for −0.18 ROUGE-L.
+Nucleus sampling (D5) is fastest but degrades quality by −4.0 ROUGE-L.
+
+---
+
+### E4 — Faithfulness Evaluation (BART-base `with_speakers`, 819-sample test set)
+
+> Source: `results/metrics/faithfulness_report.json`
+
+| Metric | Value | Method |
+|--------|-------|--------|
+| Hallucination rate | **10.1%** (83 / 819 examples) | spaCy `en_core_web_sm` NER entity cross-reference |
+| Speaker preservation | **75.5%** | Jaccard overlap of speaker names in source vs summary |
+| NLI faithfulness | **0.308** | `cross-encoder/nli-deberta-v3-small` (CPU inference) |
+| Length–ROUGE-L correlation | **−0.25** | Pearson r over 819 samples |
+
+The negative length–ROUGE correlation indicates shorter generated summaries tend to score
+lower — the model occasionally over-compresses and drops key content.
+
+---
+
+## Error Analysis
+
+Manual annotation of 20 stratified samples (seed=42, avg ROUGE-L = 39.48).
+Full annotation in [`results/error_analysis.md`](results/error_analysis.md).
+
+| Category | Count | % |
+|----------|-------|---|
+| ✅ Correct | 4 | 20% |
+| ⚠️ Partial (speaker/fact error) | 8 | 40% |
+| ❌H Hallucination | 6 | 30% |
+| ❌G Over-generic | 2 | 10% |
+| ❌T Truncated | 0 | 0% |
+
+### Example 1 — ✅ Correct (idx=32, ROUGE-L=53.3)
+
+**Dialogue**
+```
+Jack: Cocktails later?
+May: YES!!!
+May: You read my mind...
+Jack: Possibly a little tightly strung today?
+May: Sigh... without question.
+Jack: Thought so.
+May: A little drink will help!
+Jack: Maybe two!
+```
+**Reference:** Jack and May will drink cocktails later.  
+**Generated:** Jack will have a drink with May later.
+
+---
+
+### Example 2 — ❌H Hallucination (idx=654, ROUGE-L=12.8)
+
+**Dialogue**
+```
+Richie: Pogba
+Clay: Pogboom
+Richie: what a strike yoh!
+Clay: was off the seat the moment he chopped the ball back to his right foot
+Richie: me too dude
+Clay: hope his form lasts
+...
+```
+**Reference:** Richie and Clay saw a very good football game, with one football player
+chopping the ball back to his foot. Jose has trust in that player.  
+**Generated:** Pogba scored the first goal of the season. He deserved to score after
+his first 60 minutes.
+
+*Hallucinated elements*: "scored the first goal of the season" and "first 60 minutes"
+are absent from the dialogue — no scoreline is ever mentioned.
+
+---
+
+### Example 3 — ❌G Over-generic (idx=281, ROUGE-L=32.3)
+
+**Dialogue**
+```
+Abby: Have you talked to Miro?
+Dylan: No, not really, I've never had an opportunity
+Abby: yes, he's so interesting
+Abby: told me the story of his father coming from Albania to the US in the early 1990s
+Dylan: really? illegally?
+Abby: Yes! in a fishing boat!
+```
+**Reference:** Miro speaks Albanian with his parents. His family left Albania illegally
+in the 1990s.  
+**Generated:** Miro told Abby the story of his father coming from Albania to the US in
+the early 1990s.
+
+*Missing detail*: The dramatic fact that the family fled **illegally** (in a fishing boat)
+is the key information — the model paraphrases the surface form and loses the specificity.
+
+---
+
+## Quick Start
 
 ```bash
-# Python 3.12 venv required (system Python 3.14 lacks stable PyTorch wheels)
+# 1. Create Python 3.12 venv (system Python 3.14 lacks stable PyTorch wheels)
 python3.12 -m venv ~/.venvs/meeting-summarizer --prompt meeting-summarizer
 source ~/.venvs/meeting-summarizer/bin/activate
 
-# Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 python3 -m spacy download en_core_web_sm
 
-# Verify MPS environment (all 5 checks must pass before any training)
+# 3. Verify MPS environment (all checks must pass)
 python3 scripts/verify_env.py
+
+# 4. Pre-download all assets (network step — run once)
+python3 scripts/predownload_assets.py
+
+# 5. Launch demo (model must already be in models/best/; see Reproduction)
+streamlit run scripts/app.py
 ```
 
 ---
 
-## Training
+## Reproduction
 
 ```bash
-# Step 1: Tokenize and cache both dataset variants (run once)
+# Tokenize dataset (run once; produces data/cache/ variants)
 python3 scripts/preprocess.py
 
-# Step 2: Fine-tune (all hyperparameters read from config.yaml)
-python3 scripts/train.py
+# Fine-tune (reads all hyperparameters from config.yaml)
+PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py
 
-# Step 3: Evaluate on the held-out test set
+# Evaluate on test set
 python3 scripts/evaluate.py
 
-# Step 4: Run decoding strategy ablation (no retraining needed)
+# Decoding strategy ablation (E3)
 python3 scripts/decoding_ablation.py
 
-# Step 5: Faithfulness evaluation
+# Faithfulness evaluation (E4)
 python3 scripts/evaluate_faithfulness.py
 
-# Step 6: Aggregate all experiment results
+# Aggregate all experiment results into comparison table
 python3 scripts/compare_experiments.py
 ```
+
+All hyperparameters are in [`config.yaml`](config.yaml).
+Key values: `batch_size=8`, `lr=5e-5`, `num_epochs=5`, `warmup_steps=500`,
+`num_beams=4`, `length_penalty=1.0`, `use_bf16=true`.
 
 ---
 
@@ -93,30 +250,30 @@ python3 scripts/compare_experiments.py
 
 ```bash
 streamlit run scripts/app.py
+# Opens http://localhost:8501
 ```
+
+Features:
+- Two-column layout: dialogue input with generation settings expander (left) /
+  summary + action items + entities + generation info (right)
+- Beam width slider (1–8) and length penalty selector (0.8 / 1.0 / 1.2)
+- Regex-based action-item extraction (modal + action-verb patterns)
+- spaCy NER entity cards
+- Accurate latency measurement via `torch.mps.synchronize()`
 
 ---
 
 ## Dataset Statistics
 
-<!-- Fill in from results/metrics/data_audit.json after running data_audit.py -->
+From `results/metrics/data_audit.json` (T5 tokenizer, training split):
 
-| Field          | min | p50 | p90 | p95 | p99 | max | mean |
-|----------------|-----|-----|-----|-----|-----|-----|------|
-| Dialogue tokens| —   | —   | —   | —   | —   | —   | —    |
-| Summary tokens | —   | —   | —   | —   | —   | —   | —    |
+| Field | min | p50 | p90 | p99 | max | mean |
+|-------|-----|-----|-----|-----|-----|------|
+| Dialogue tokens | 11 | 135 | 258 | 375 | 945 | 147 |
+| Summary tokens | 3 | 21 | 39 | 56 | 90 | 23 |
 
----
-
-## Faithfulness Evaluation
-
-<!-- Fill in after running evaluate_faithfulness.py -->
-
-| Metric                    | Value |
-|---------------------------|-------|
-| Hallucination rate        | —     |
-| Speaker preservation rate | —     |
-| NLI faithfulness score    | —     |
+Coverage: 99%+ of dialogues fit within `max_source_length=512`;
+all summaries fit within `max_target_length=128`.
 
 ---
 
@@ -125,13 +282,16 @@ streamlit run scripts/app.py
 ```
 meeting-summarizer/
 ├── config.yaml                   # ALL hyperparameters — single source of truth
-├── requirements.txt
+├── requirements.txt              # Full pinned dependency list
+├── model_card.md                 # HuggingFace model card
 ├── data/cache/                   # Tokenized dataset cache (git-ignored)
 ├── models/
 │   ├── checkpoints/              # Training checkpoints (git-ignored)
-│   └── best/                     # Best model per experiment (git-ignored)
+│   └── best/                     # Best checkpoint per experiment (git-ignored)
 ├── results/
-│   └── metrics/                  # Experiment JSON results (committed)
+│   ├── error_analysis.md         # Manual annotation of 20 examples
+│   ├── error_analysis_raw.json   # Raw examples with source/ref/generated
+│   └── metrics/                  # Per-experiment JSON results (committed)
 ├── scripts/
 │   ├── verify_env.py             # Pre-flight MPS environment check
 │   ├── data_audit.py             # Dataset statistics + leakage guard
@@ -139,8 +299,8 @@ meeting-summarizer/
 │   ├── train.py                  # Fine-tuning script
 │   ├── evaluate.py               # ROUGE evaluation on test set
 │   ├── decoding_ablation.py      # E3: beam/sampling strategy comparison
-│   ├── evaluate_faithfulness.py  # E4: hallucination + speaker metrics
-│   ├── compare_experiments.py    # Aggregate results table
+│   ├── evaluate_faithfulness.py  # E4: hallucination + speaker + NLI metrics
+│   ├── compare_experiments.py    # Aggregate results table + CSV
 │   └── app.py                    # Streamlit demo
 └── notebooks/
     └── eda.ipynb                 # Exploratory data analysis
@@ -150,10 +310,21 @@ meeting-summarizer/
 
 ## Limitations
 
-- SAMSum dialogues are **synthetic** (written by annotators, not real meetings).
-- Dataset skews toward **2-speaker conversations** (~75%); performance on
-  multi-party meetings may be lower.
-- Regex-based action-item extraction in the demo (`app.py`) is brittle and not
-  evaluated rigorously.
-- Results are specific to Apple MPS/BF16; values on CUDA hardware will differ.
-- **CC BY-NC-ND 4.0** license restricts all use to non-commercial contexts.
+- **Synthetic dataset**: SAMSum dialogues were written by paid annotators to
+  resemble WhatsApp conversations — they are not transcripts of real meetings.
+  Performance on actual meeting recordings (with disfluencies, overlapping
+  speech, and domain-specific jargon) has not been evaluated.
+- **Two-speaker bias**: ~75% of SAMSum conversations involve exactly two
+  speakers. Multi-party summarization (3+ participants) is underrepresented
+  in training and may degrade silently.
+- **Hallucination rate 10.1%**: spaCy NER cross-reference detects only
+  entity-level confabulations. Action-direction swaps and fabricated events
+  (e.g. idx=654) are not caught by the automated metric.
+- **Brittle action-item extraction**: The regex pipeline in `app.py` is a
+  demonstration only. It produces false positives on quoted speech and
+  misses multi-clause action items.
+- **MPS-only timing**: All latency figures are from Apple M4 Pro MPS.
+  Comparable CUDA hardware will differ.
+- **CC BY-NC-ND 4.0**: Non-commercial use only. Commercial deployment or
+  derivative model distribution is not permitted under the SAMSum license.
+

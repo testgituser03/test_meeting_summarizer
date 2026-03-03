@@ -1,63 +1,88 @@
 #!/usr/bin/env python3
 """
-app.py — Streamlit demo for the Meeting Summarizer.
+app.py — Production Streamlit demo for the Meeting Summarizer.
 
 Features:
-  - Paste any conversation → generate summary with configurable beam search
-  - Speaker tag preservation toggle (E2 insight)
-  - Regex-based action-item extraction
-  - Inline model card with CC BY-NC-ND 4.0 license notice
+  - @st.cache_resource model loading — loaded once per session, never on click
+  - BF16 inference on Apple MPS (or CPU fallback)
+  - Two-column layout: left = dialogue + generation settings; right = results
+  - Generation settings expander: beam width slider (1–8) + length penalty selectbox
+  - Regex action-item extraction (modal + action-verb patterns), deduplicated, capped at 5
+  - spaCy en_core_web_sm named entity recognition, shown as st.metric cards
+  - st.json generation info block with latency (torch.mps.synchronize() before stop)
+  - CC BY-NC-ND 4.0 disclaimer in footer
+  - Graceful handling of empty / whitespace-only input
 
 Usage:
   streamlit run scripts/app.py
-  # Opens http://localhost:8501 in your browser
+  # Opens http://localhost:8501
 """
 
 import re
-import sys
+import time
 from pathlib import Path
 
 import streamlit as st
 import torch
 import yaml
 
+# ── Paths ──────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH  = PROJECT_ROOT / "config.yaml"
-DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / "best" / "facebook_bart-base_with_speakers"
+MODEL_PATH   = str(PROJECT_ROOT / "models" / "best" / "facebook_bart-base_with_speakers")
 
-ACTION_PATTERNS = [
-    r"\b(will|going to|needs? to|should|must|have to)\s+(?:\w+\s){1,8}\w+",
-    r"\b(send|call|email|schedule|book|prepare|review|check|bring|follow up|look into)\s+(?:\w+\s){0,6}\w+",
-]
+# ── Regex patterns (per spec) ──────────────────────────────────────────────────
+_MODAL_PATTERN  = r"\b(will|going to|needs? to|should|must|have to)\s+\w[\w\s]{4,40}"
+_ACTION_PATTERN = r"\b(send|call|email|schedule|book|prepare|review|check|bring)\s+\w[\w\s]{3,35}"
+
+# ── Sample dialogue pre-loaded into text area ──────────────────────────────────
+_SAMPLE_DIALOGUE = """\
+Amanda: I baked cookies. Do you want some?
+Jerry: Sure!
+Amanda: I'll bring you tomorrow :-)
+Jerry: Thanks! Do you know how to make the lemon ones?
+Amanda: The biscuits?
+Jerry: Yeah.
+Amanda: I'll send you the recipe. It's easy!\
+"""
+
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-def load_config() -> dict:
+def _load_config() -> dict:
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH) as f:
             return yaml.safe_load(f)
     return {"max_source_length": 512, "max_target_length": 128, "use_bf16": True}
 
 
-# ── Model loading (cached so Streamlit doesn't reload on every interaction) ────
+# ── Cached resource loaders (one call per Streamlit session) ───────────────────
 
-@st.cache_resource(show_spinner="Loading model…")
-def load_model(model_path: str):
+@st.cache_resource(show_spinner="⏳ Loading model weights (once per session)…")
+def _load_model():
+    """Load tokenizer + model onto MPS (or CPU). Called once; result is reused."""
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM  # noqa: PLC0415
-    cfg    = load_config()
+
+    cfg    = _load_config()
     device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
-    tok    = AutoTokenizer.from_pretrained(model_path)
-    mdl    = AutoModelForSeq2SeqLM.from_pretrained(
-        model_path,
-        torch_dtype=torch.bfloat16 if cfg.get("use_bf16") else torch.float32,
-    ).to(device)
+    dtype  = torch.bfloat16 if cfg.get("use_bf16", True) else torch.float32
+
+    tok = AutoTokenizer.from_pretrained(MODEL_PATH)
+    mdl = AutoModelForSeq2SeqLM.from_pretrained(MODEL_PATH, dtype=dtype).to(device)
     mdl.eval()
-    return tok, mdl, device, cfg
+    return tok, mdl, device, dtype, cfg
+
+
+@st.cache_resource(show_spinner="⏳ Loading spaCy model…")
+def _load_nlp():
+    """Load spaCy en_core_web_sm once per session."""
+    import spacy  # noqa: PLC0415
+    return spacy.load("en_core_web_sm")
 
 
 # ── Inference ──────────────────────────────────────────────────────────────────
 
-def summarize(
+def _generate(
     dialogue: str,
     tokenizer,
     model,
@@ -65,115 +90,192 @@ def summarize(
     cfg: dict,
     num_beams: int,
     length_penalty: float,
-) -> str:
+) -> tuple[str, float]:
+    """Return (summary_text, latency_ms).
+
+    torch.mps.synchronize() is called BEFORE stopping the timer so the
+    latency figure includes all MPS kernel execution, not just dispatch.
+    """
     inputs = tokenizer(
         dialogue,
         return_tensors="pt",
         max_length=cfg["max_source_length"],
         truncation=True,
     ).to(device)
+
+    t_start = time.perf_counter()
     with torch.no_grad():
         out = model.generate(
             **inputs,
-            max_new_tokens  = cfg["max_target_length"],
-            num_beams       = num_beams,
-            length_penalty  = length_penalty,
-            early_stopping  = True,
+            max_new_tokens = cfg["max_target_length"],
+            num_beams      = num_beams,
+            length_penalty = length_penalty,
+            early_stopping = True,
         )
-    return tokenizer.decode(out[0], skip_special_tokens=True).strip()
+    # Synchronize before reading the clock — required for accurate MPS timing
+    if device.type == "mps":
+        torch.mps.synchronize()
+    latency_ms = (time.perf_counter() - t_start) * 1000.0
+
+    summary = tokenizer.decode(out[0], skip_special_tokens=True).strip()
+    return summary, latency_ms
 
 
-def extract_action_items(text: str) -> list[str]:
-    items: list[str] = []
-    for pat in ACTION_PATTERNS:
+# ── Action-item extraction ─────────────────────────────────────────────────────
+
+def _extract_action_items(text: str) -> list[str]:
+    """Extract action items using modal-verb + action-verb patterns.
+
+    Deduplicates (case-insensitive) and caps at 5 results.
+    """
+    raw: list[str] = []
+    for pat in [_MODAL_PATTERN, _ACTION_PATTERN]:
         for m in re.finditer(pat, text, re.IGNORECASE):
-            item = m.group(0).strip().rstrip(".,;")
-            if 4 <= len(item.split()) <= 12:
-                items.append(item[0].upper() + item[1:])
-    return list(dict.fromkeys(items))[:5]   # deduplicate, cap at 5
+            phrase = m.group(0).strip().rstrip(".,;:")
+            words  = phrase.split()
+            if 3 <= len(words) <= 12:
+                raw.append(phrase[0].upper() + phrase[1:])
+
+    # Deduplicate preserving first-seen order
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for item in raw:
+        key = item.lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
+    return deduped[:5]
 
 
-# ── UI ─────────────────────────────────────────────────────────────────────────
+# ── Main UI ────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     st.set_page_config(
         page_title="Meeting Summarizer",
-        page_icon="📝",
-        layout="wide",
+        page_icon  ="📝",
+        layout     ="wide",
     )
 
-    # ── Sidebar ───────────────────────────────────────────────────────────
-    with st.sidebar:
-        st.header("⚙️ Settings")
-        model_path = st.text_input(
-            "Model path",
-            value=str(DEFAULT_MODEL_PATH),
-            help="Path to a saved model directory (models/best/…)",
-        )
-        num_beams      = st.slider("Beam width",      min_value=1, max_value=8, value=4)
-        length_penalty = st.slider("Length penalty",  min_value=0.5, max_value=2.0, value=1.0, step=0.1)
-        show_tokens    = st.checkbox("Show token count", value=False)
-
-        st.divider()
-        st.caption(
-            "⚠️ **License**: This demo uses the SAMSum dataset "
-            "([CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)). "
-            "Non-commercial use only."
-        )
-        st.caption("Hardware: Apple M4 Pro · MPS / BF16")
-
-    # ── Header ────────────────────────────────────────────────────────────
     st.title("📝 Meeting Summarizer")
-    st.caption("Fine-tuned BART-base on SAMSum · Apple M4 Pro · BF16 MPS")
+    st.caption(
+        "Fine-tuned `facebook/bart-base` on SAMSum · "
+        "Apple M4 Pro · BF16 / MPS · ROUGE-L **39.97**"
+    )
 
-    # ── Load model ────────────────────────────────────────────────────────
-    if not Path(model_path).exists():
-        st.warning(
-            f"Model not found at `{model_path}`. "
+    # Load resources (cached; no-op on subsequent clicks)
+    if not Path(MODEL_PATH).exists():
+        st.error(
+            f"Model not found at `{MODEL_PATH}`. "
             "Run `python3 scripts/train.py` first, then restart the app."
         )
         st.stop()
 
-    tokenizer, model, device, cfg = load_model(model_path)
+    tokenizer, model, device, dtype, cfg = _load_model()
+    nlp = _load_nlp()
 
-    # ── Main layout ───────────────────────────────────────────────────────
+    # ── Two equal columns ─────────────────────────────────────────────────
     col1, col2 = st.columns([1, 1], gap="large")
 
-    SAMPLE = (
-        "Amanda: I baked cookies. Do you want some?\n"
-        "Jerry: Sure!\n"
-        "Amanda: I'll bring you tomorrow :-)\n"
-        "Jerry: Thanks! Do you know how to make the lemon ones?\n"
-        "Amanda: The biscuits?\n"
-        "Jerry: Yeah.\n"
-        "Amanda: I'll send you the recipe. It's easy!"
-    )
-
+    # ── Left column: input + settings ────────────────────────────────────
     with col1:
-        st.subheader("Conversation")
-        dialogue = st.text_area("Paste dialogue here", value=SAMPLE, height=300)
-        if show_tokens and dialogue:
-            n_tok = len(tokenizer(dialogue)["input_ids"])
-            st.caption(f"Input tokens: {n_tok} / {cfg['max_source_length']}")
-        summarize_btn = st.button("Summarize →", type="primary", use_container_width=True)
+        st.subheader("💬 Dialogue Input")
+        dialogue = st.text_area(
+            label       = "Paste or type a conversation:",
+            value       = _SAMPLE_DIALOGUE,
+            height      = 300,
+            placeholder = "Enter dialogue here…",
+        )
 
+        with st.expander("⚙️ Generation Settings", expanded=False):
+            num_beams = st.slider(
+                "Beam width",
+                min_value = 1,
+                max_value = 8,
+                value     = 4,
+                help      = "Higher → better quality, slower. E3 showed beam=4 is the sweet spot.",
+            )
+            length_penalty = st.selectbox(
+                "Length penalty",
+                options = [0.8, 1.0, 1.2],
+                index   = 1,
+                help    = (
+                    "< 1.0 favours shorter outputs; > 1.0 favours longer outputs. "
+                    "D3 (lp=1.2) achieved best ROUGE-L=39.97 in E3."
+                ),
+            )
+
+        summarize_btn = st.button(
+            "▶  Summarize",
+            type             = "primary",
+            use_container_width = True,
+        )
+
+    # ── Right column: results ─────────────────────────────────────────────
     with col2:
-        st.subheader("Summary")
-        if summarize_btn and dialogue.strip():
-            with st.spinner("Generating…"):
-                summary = summarize(
+        st.subheader("📋 Results")
+
+        if summarize_btn:
+            # Guard: empty / whitespace-only input
+            if not dialogue or not dialogue.strip():
+                st.warning("⚠️  Please enter a dialogue before clicking Summarize.")
+                st.stop()
+
+            with st.spinner("Generating summary…"):
+                summary, latency_ms = _generate(
                     dialogue, tokenizer, model, device, cfg,
-                    num_beams=num_beams, length_penalty=length_penalty
+                    num_beams      = num_beams,
+                    length_penalty = float(length_penalty),
                 )
+
+            # ── Summary ──────────────────────────────────────────────────
+            st.markdown("**Summary**")
             st.success(summary)
 
-            action_items = extract_action_items(summary + " " + dialogue)
+            # ── Action items ──────────────────────────────────────────────
+            action_items = _extract_action_items(summary + " " + dialogue)
+            st.markdown("**🗒️ Action Items**")
             if action_items:
-                st.subheader("🗒️ Action Items (extracted)")
                 for item in action_items:
                     st.markdown(f"- {item}")
-        elif summarize_btn:
-            st.warning("Please enter a dialogue first.")
+            else:
+                st.caption("_No action items detected._")
+
+            # ── Named entities (spaCy) ────────────────────────────────────
+            doc      = nlp(summary)
+            entities = [(ent.text, ent.label_) for ent in doc.ents]
+            if entities:
+                st.markdown("**🏷️ Named Entities**")
+                # Up to 4 per row
+                ncols    = min(len(entities), 4)
+                ent_cols = st.columns(ncols)
+                for i, (ent_text, ent_label) in enumerate(entities):
+                    with ent_cols[i % ncols]:
+                        st.metric(label=ent_label, value=ent_text)
+
+            # ── Generation info ───────────────────────────────────────────
+            st.markdown("**ℹ️ Generation Info**")
+            st.json({
+                "model"         : "facebook/bart-base",
+                "variant"       : "with_speakers",
+                "device"        : str(device),
+                "dtype"         : str(dtype),
+                "num_beams"     : num_beams,
+                "length_penalty": float(length_penalty),
+                "latency_ms"    : round(latency_ms, 1),
+            })
+
+        else:
+            st.info("Enter a dialogue on the left and click **▶  Summarize**.")
+
+    # ── Footer disclaimer ─────────────────────────────────────────────────
+    st.divider()
+    st.caption(
+        "📄 **Dataset**: SAMSum "
+        "([CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) "
+        "— non-commercial use only). "
+        "Model weights: `facebook/bart-base` fine-tuned on SAMSum. "
+        "Hardware: Apple M4 Pro · MPS / BF16."
+    )
 
 
 if __name__ == "__main__":
