@@ -211,7 +211,7 @@ BART-base beyond the 5-epoch baseline.
 
 | Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | Train time |
 |-----------|---------|---------|---------|-----------|
-| Baseline E1 (5ep, lr=5e-5) | 47.86 | 23.22 | 39.85 | 168.4 min |
+| Baseline E1 (5ep, lr=5e-5) | 47.86 | 23.22 | 39.85 | 72 min |
 | Extended E8 (8ep, lr=3e-5, cosine) | 46.45 | 22.05 | **38.46** | 259.6 min |
 
 **Δ ROUGE-L = −1.39** (extended training underperforms baseline).
@@ -361,7 +361,7 @@ python3 scripts/pegasus_experiment.py --train        # fine-tune (568M params)
 # Evaluate on test set
 python3 scripts/evaluate.py
 
-# Decoding strategy ablation (E3 — 11 configs)
+# Decoding strategy ablation (E3 — 29 configs)
 python3 scripts/decoding_ablation.py
 
 # Faithfulness evaluation (E4)

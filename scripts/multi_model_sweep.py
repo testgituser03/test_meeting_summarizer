@@ -87,6 +87,14 @@ MODEL_REGISTRY: dict[str, dict] = {
         "model_type":    "t5",
         "baseline_rl":   31.95,
     },
+    "no_speakers": {
+        "tag":           "no_speakers",
+        "label":         "BART-base (no speakers)",
+        "model_path":    "models/best/facebook_bart-base_no_speakers",
+        "dataset_cache": "data/cache/samsum_no_speakers_facebook_bart-base",
+        "model_type":    "bart",
+        "baseline_rl":   33.23,
+    },
 }
 
 # ── Decoding configs to sweep ──────────────────────────────────────────────────
@@ -119,6 +127,82 @@ SWEEP_CONFIGS: list[dict] = [
         "id":       "D14",
         "label":    "beam8_lp1.2",
         "gen_kwargs": {"num_beams": 8, "length_penalty": 1.2,
+                       "do_sample": False, "early_stopping": True},
+    },
+    # ── beam=4 ridge: also crossed 40 on BART-base ─────────────────────────────
+    {
+        "id":       "D7",
+        "label":    "beam4_lp1.25",
+        "gen_kwargs": {"num_beams": 4, "length_penalty": 1.25,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D8",
+        "label":    "beam4_lp1.3",
+        "gen_kwargs": {"num_beams": 4, "length_penalty": 1.3,
+                       "do_sample": False, "early_stopping": True},
+    },
+    # ── beam=5 ridge: the dominant zone discovered in full ablation on BART-base ──
+    # All configs below achieved ROUGE-L ≥ 40.0 on the base BART-base checkpoint.
+    # Testing them here reveals whether the beam=5 optimum transfers to other models.
+    {
+        "id":       "D17",
+        "label":    "beam5_lp1.2",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.2,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D19",
+        "label":    "beam5_lp1.3",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.3,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D21",
+        "label":    "beam4_lp1.28",
+        "gen_kwargs": {"num_beams": 4, "length_penalty": 1.28,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D22",
+        "label":    "beam5_lp1.28",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.28,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D23",
+        "label":    "beam5_lp1.32",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.32,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D24",
+        "label":    "beam5_lp1.35",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.35,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D25",
+        "label":    "beam5_lp1.4",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.4,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D27",
+        "label":    "beam5_lp1.33",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.33,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D28",
+        "label":    "beam5_lp1.37",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.37,
+                       "do_sample": False, "early_stopping": True},
+    },
+    {
+        "id":       "D29",
+        "label":    "beam5_lp1.45",
+        "gen_kwargs": {"num_beams": 5, "length_penalty": 1.45,
                        "do_sample": False, "early_stopping": True},
     },
 ]

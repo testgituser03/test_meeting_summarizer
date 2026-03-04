@@ -1,0 +1,19 @@
+{
+  "model_key": "extended",
+  "model_label": "BART-base Extended (8ep, cosine)",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_extended",
+  "config_id": "D21",
+  "label": "beam4_lp1.28",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.28,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "rouge1": 46.9566,
+  "rouge2": 22.0601,
+  "rougeL": 38.5072,
+  "avg_summary_tokens": 16.45,
+  "ms_per_sample": 188.42,
+  "n_samples": 819
+}

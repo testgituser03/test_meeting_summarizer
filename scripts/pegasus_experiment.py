@@ -284,6 +284,7 @@ def fine_tune_pegasus(cfg: dict):
         Seq2SeqTrainer,
         Seq2SeqTrainingArguments,
     )
+    from transformers.trainer_utils import get_last_checkpoint
 
     device = get_device()
     run_name = f"{PEGASUS_SLUG}_with_speakers"
@@ -404,8 +405,15 @@ def fine_tune_pegasus(cfg: dict):
         compute_metrics=compute_metrics,
     )
 
+    # Auto-resume from last checkpoint if one exists in ckpt_dir
+    last_ckpt = get_last_checkpoint(str(ckpt_dir)) if ckpt_dir.exists() else None
+    if last_ckpt:
+        print(f"  ▶  Resuming from checkpoint: {last_ckpt}")
+    else:
+        print(f"  ▶  Starting training from scratch")
+
     t_start = time.perf_counter()
-    trainer.train()
+    trainer.train(resume_from_checkpoint=last_ckpt)
     train_time = time.perf_counter() - t_start
     train_minutes = round(train_time / 60, 1)
 

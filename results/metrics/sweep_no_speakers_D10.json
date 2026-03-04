@@ -1,0 +1,19 @@
+{
+  "model_key": "no_speakers",
+  "model_label": "BART-base (no speakers)",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_no_speakers",
+  "config_id": "D10",
+  "label": "beam6_lp1.2",
+  "gen_kwargs": {
+    "num_beams": 6,
+    "length_penalty": 1.2,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "rouge1": 39.3967,
+  "rouge2": 19.6233,
+  "rougeL": 33.494,
+  "avg_summary_tokens": 16.94,
+  "ms_per_sample": 212.15,
+  "n_samples": 819
+}
