@@ -1,0 +1,19 @@
+{
+  "model_key": "t5",
+  "model_label": "T5-small (with speakers)",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_with_speakers",
+  "config_id": "D10",
+  "label": "beam6_lp1.2",
+  "gen_kwargs": {
+    "num_beams": 6,
+    "length_penalty": 1.2,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "rouge1": 38.9076,
+  "rouge2": 15.8048,
+  "rougeL": 31.9383,
+  "avg_summary_tokens": 15.91,
+  "ms_per_sample": 178.27,
+  "n_samples": 819
+}

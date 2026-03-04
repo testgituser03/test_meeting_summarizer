@@ -204,6 +204,96 @@
         "early_stopping": true,
         "min_length": 5
       }
+    },
+    {
+      "config_id": "D12",
+      "label": "beam6_lp1.25",
+      "description": "6 beams, lp=1.25 \u2014 D10 beam width + D7 length penalty",
+      "rouge1": 48.1755,
+      "rouge2": 23.348,
+      "rougeL": 39.9992,
+      "avg_summary_tokens": 16.81,
+      "ms_per_sample": 231.67,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 6,
+        "length_penalty": 1.25,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D13",
+      "label": "beam6_lp1.3",
+      "description": "6 beams, lp=1.3 \u2014 D10 beam width + D8 length penalty",
+      "rouge1": 48.12,
+      "rouge2": 23.3639,
+      "rougeL": 39.966,
+      "avg_summary_tokens": 16.95,
+      "ms_per_sample": 216.15,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 6,
+        "length_penalty": 1.3,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D14",
+      "label": "beam8_lp1.2",
+      "description": "8 beams, lp=1.2 \u2014 wider search at optimal length penalty",
+      "rouge1": 48.149,
+      "rouge2": 23.3516,
+      "rougeL": 39.8793,
+      "avg_summary_tokens": 16.81,
+      "ms_per_sample": 283.16,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 8,
+        "length_penalty": 1.2,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D15",
+      "label": "beam8_lp1.25",
+      "description": "8 beams, lp=1.25 \u2014 sweet spot of D14 beam + D12 penalty",
+      "rouge1": 48.1366,
+      "rouge2": 23.3246,
+      "rougeL": 39.8605,
+      "avg_summary_tokens": 17.0,
+      "ms_per_sample": 273.33,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 8,
+        "length_penalty": 1.25,
+        "do_sample": false,
+        "early_stopping": true
+      }
+    },
+    {
+      "config_id": "D16",
+      "label": "beam12_lp1.2",
+      "description": "12 beams, lp=1.2 \u2014 maximum-width search at optimal penalty",
+      "rouge1": 48.2313,
+      "rouge2": 23.4513,
+      "rougeL": 39.8913,
+      "avg_summary_tokens": 16.72,
+      "ms_per_sample": 402.28,
+      "n_samples": 819,
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 12,
+        "length_penalty": 1.2,
+        "do_sample": false,
+        "early_stopping": true
+      }
     }
   ]
 }

@@ -1,0 +1,18 @@
+{
+  "config_id": "D14",
+  "label": "beam8_lp1.2",
+  "description": "8 beams, lp=1.2 \u2014 wider search at optimal length penalty",
+  "rouge1": 48.149,
+  "rouge2": 23.3516,
+  "rougeL": 39.8793,
+  "avg_summary_tokens": 16.81,
+  "ms_per_sample": 283.16,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 8,
+    "length_penalty": 1.2,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

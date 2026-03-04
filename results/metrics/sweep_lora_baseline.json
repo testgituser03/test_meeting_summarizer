@@ -1,0 +1,19 @@
+{
+  "model_key": "lora",
+  "model_label": "BART-base LoRA (r=16)",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_lora",
+  "config_id": "baseline",
+  "label": "beam4_lp1.0",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.0,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "rouge1": 45.0697,
+  "rouge2": 21.143,
+  "rougeL": 37.5779,
+  "avg_summary_tokens": 14.02,
+  "ms_per_sample": 156.32,
+  "n_samples": 819
+}

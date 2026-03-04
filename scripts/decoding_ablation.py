@@ -148,6 +148,49 @@ CONFIGS: list[dict] = [
         "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.2, "do_sample": False,
                         "early_stopping": True, "min_length": 5},
     },
+    # ── Extended grid search: beam width × length penalty ─────────────────────
+    # D12-D16 explore combinations NOT covered by D1-D11.
+    # D10 (beam=6/lp=1.2) is the current best at 40.03; these probe nearby.
+    {
+        "id":          "D12",
+        "filename":    "decoding_D12_beam6_lp1.25",
+        "label":       "beam6_lp1.25",
+        "description": "6 beams, lp=1.25 — D10 beam width + D7 length penalty",
+        "gen_kwargs":  {"num_beams": 6, "length_penalty": 1.25, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D13",
+        "filename":    "decoding_D13_beam6_lp1.3",
+        "label":       "beam6_lp1.3",
+        "description": "6 beams, lp=1.3 — D10 beam width + D8 length penalty",
+        "gen_kwargs":  {"num_beams": 6, "length_penalty": 1.3, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D14",
+        "filename":    "decoding_D14_beam8_lp1.2",
+        "label":       "beam8_lp1.2",
+        "description": "8 beams, lp=1.2 — wider search at optimal length penalty",
+        "gen_kwargs":  {"num_beams": 8, "length_penalty": 1.2, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D15",
+        "filename":    "decoding_D15_beam8_lp1.25",
+        "label":       "beam8_lp1.25",
+        "description": "8 beams, lp=1.25 — sweet spot of D14 beam + D12 penalty",
+        "gen_kwargs":  {"num_beams": 8, "length_penalty": 1.25, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D16",
+        "filename":    "decoding_D16_beam12_lp1.2",
+        "label":       "beam12_lp1.2",
+        "description": "12 beams, lp=1.2 — maximum-width search at optimal penalty",
+        "gen_kwargs":  {"num_beams": 12, "length_penalty": 1.2, "do_sample": False,
+                        "early_stopping": True},
+    },
 ]
 
 
