@@ -1,0 +1,18 @@
+{
+  "config_id": "D20",
+  "label": "beam6_lp1.15",
+  "description": "6 beams, lp=1.15 \u2014 probes just below D10 peak (beam6/lp1.2=40.03)",
+  "rouge1": 48.1118,
+  "rouge2": 23.3043,
+  "rougeL": 39.9505,
+  "avg_summary_tokens": 16.41,
+  "ms_per_sample": 253.11,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 6,
+    "length_penalty": 1.15,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

@@ -191,6 +191,118 @@ CONFIGS: list[dict] = [
         "gen_kwargs":  {"num_beams": 12, "length_penalty": 1.2, "do_sample": False,
                         "early_stopping": True},
     },
+    # ── Fine-grained gap-filling: beam=5 and lp steps between confirmed >40 configs ──
+    # D7 (beam4/lp1.25=40.0056), D8 (beam4/lp1.3=40.0107), D10 (beam6/lp1.2=40.031)
+    # Unexplored: beam=5 (between 4 and 6), lp=1.15 (below D10 peak), lp=1.28 (between D7/D8)
+    {
+        "id":          "D17",
+        "filename":    "decoding_D17_beam5_lp1.2",
+        "label":       "beam5_lp1.2",
+        "description": "5 beams, lp=1.2 — fills gap between D3 (beam4) and D10 (beam6)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.2, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D18",
+        "filename":    "decoding_D18_beam5_lp1.25",
+        "label":       "beam5_lp1.25",
+        "description": "5 beams, lp=1.25 — interpolates D7 (beam4/lp1.25) and D12 (beam6/lp1.25)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.25, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D19",
+        "filename":    "decoding_D19_beam5_lp1.3",
+        "label":       "beam5_lp1.3",
+        "description": "5 beams, lp=1.3 — interpolates D8 (beam4/lp1.3) and D13 (beam6/lp1.3)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.3, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D20",
+        "filename":    "decoding_D20_beam6_lp1.15",
+        "label":       "beam6_lp1.15",
+        "description": "6 beams, lp=1.15 — probes just below D10 peak (beam6/lp1.2=40.03)",
+        "gen_kwargs":  {"num_beams": 6, "length_penalty": 1.15, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D21",
+        "filename":    "decoding_D21_beam4_lp1.28",
+        "label":       "beam4_lp1.28",
+        "description": "4 beams, lp=1.28 — midpoint between D7 (lp=1.25) and D8 (lp=1.3)",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.28, "do_sample": False,
+                        "early_stopping": True},
+    },
+    # ── Ultra-fine sweep around D19 peak (beam5/lp1.3 = ROUGE-L 40.11 champion) ──
+    # Mapping the beam=5 performance curve precisely to find global optimum.
+    {
+        "id":          "D22",
+        "filename":    "decoding_D22_beam5_lp1.28",
+        "label":       "beam5_lp1.28",
+        "description": "5 beams, lp=1.28 — between D18 (lp=1.25, 39.99) and D19 (lp=1.3, 40.11)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.28, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D23",
+        "filename":    "decoding_D23_beam5_lp1.32",
+        "label":       "beam5_lp1.32",
+        "description": "5 beams, lp=1.32 — just past D19 peak to map the descent",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.32, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D24",
+        "filename":    "decoding_D24_beam5_lp1.35",
+        "label":       "beam5_lp1.35",
+        "description": "5 beams, lp=1.35 — further past D19, confirms/denies whether peak continues",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.35, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D25",
+        "filename":    "decoding_D25_beam5_lp1.4",
+        "label":       "beam5_lp1.4",
+        "description": "5 beams, lp=1.4 — upper bound of beam=5 length-penalty sweep",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.4, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D26",
+        "filename":    "decoding_D26_beam4_lp1.32",
+        "label":       "beam4_lp1.32",
+        "description": "4 beams, lp=1.32 — past D21 (lp=1.28=40.05) to confirm beam=4 peak",
+        "gen_kwargs":  {"num_beams": 4, "length_penalty": 1.32, "do_sample": False,
+                        "early_stopping": True},
+    },
+    # ── Hyper-fine sweep: beam=5 plateau from lp=1.28-1.35, searching for exact peak ──
+    # D22 (lp=1.28=40.11), D23 (lp=1.32=40.11), D24 (lp=1.35=40.12), D25 (lp=1.4=40.05)
+    # Peak appears around lp=1.33-1.37; probe finer to confirm global max.
+    {
+        "id":          "D27",
+        "filename":    "decoding_D27_beam5_lp1.33",
+        "label":       "beam5_lp1.33",
+        "description": "5 beams, lp=1.33 — between D23 (1.32=40.11) and D24 (1.35=40.12)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.33, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D28",
+        "filename":    "decoding_D28_beam5_lp1.37",
+        "label":       "beam5_lp1.37",
+        "description": "5 beams, lp=1.37 — between D24 (1.35=40.12) and D25 (1.4=40.05)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.37, "do_sample": False,
+                        "early_stopping": True},
+    },
+    {
+        "id":          "D29",
+        "filename":    "decoding_D29_beam5_lp1.45",
+        "label":       "beam5_lp1.45",
+        "description": "5 beams, lp=1.45 — confirms descent past D25 (1.4=40.05)",
+        "gen_kwargs":  {"num_beams": 5, "length_penalty": 1.45, "do_sample": False,
+                        "early_stopping": True},
+    },
 ]
 
 

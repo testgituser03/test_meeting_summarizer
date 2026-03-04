@@ -1,0 +1,18 @@
+{
+  "config_id": "D28",
+  "label": "beam5_lp1.37",
+  "description": "5 beams, lp=1.37 \u2014 between D24 (1.35=40.12) and D25 (1.4=40.05)",
+  "rouge1": 48.4967,
+  "rouge2": 23.5689,
+  "rougeL": 40.1076,
+  "avg_summary_tokens": 17.33,
+  "ms_per_sample": 191.84,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 5,
+    "length_penalty": 1.37,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}

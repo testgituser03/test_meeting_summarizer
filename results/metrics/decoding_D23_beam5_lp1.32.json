@@ -1,0 +1,18 @@
+{
+  "config_id": "D23",
+  "label": "beam5_lp1.32",
+  "description": "5 beams, lp=1.32 \u2014 just past D19 peak to map the descent",
+  "rouge1": 48.5114,
+  "rouge2": 23.489,
+  "rougeL": 40.1068,
+  "avg_summary_tokens": 17.12,
+  "ms_per_sample": 196.89,
+  "n_samples": 819,
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 5,
+    "length_penalty": 1.32,
+    "do_sample": false,
+    "early_stopping": true
+  }
+}
