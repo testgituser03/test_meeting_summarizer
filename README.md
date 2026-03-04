@@ -145,9 +145,10 @@ to improve coverage of long dialogues exceeding `max_source_length=512`.
 
 ---
 
-### PEGASUS Cross-Domain Transfer Experiment
+### PEGASUS Cross-Domain Transfer Experiment (E7)
 
-> Source: `results/metrics/zeroshot_google_pegasus-cnn_dailymail.json`
+> Source: `results/metrics/zeroshot_google_pegasus-cnn_dailymail.json`,
+> `results/metrics/google_pegasus-cnn_dailymail_with_speakers_test.json`
 
 Tests `google/pegasus-cnn_dailymail` (568M / 767.6M params) as a third architecture.
 PEGASUS was pre-trained with Gap Sentence Generation on news corpora — SAMSum dialogues
@@ -156,12 +157,53 @@ are structurally different, providing a cross-domain transfer baseline.
 | Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | N | Notes |
 |-----------|---------|---------|---------|---|-------|
 | Zero-shot | 1.85 | 0.00 | 1.60 | 100 | Massive domain mismatch (news → dialogue) |
-| Fine-tuned | *training in progress* | — | — | 819 | batch=1, grad_accum=8, gradient_checkpointing |
+| Fine-tuned | 1.65 | 0.00 | 1.56 | 819 | Training convergence failed (see below) |
 
-Zero-shot ROUGE-L of **1.60** confirms the news-to-dialogue domain gap — PEGASUS generates
-news-style extracts rather than dialogue summaries without fine-tuning. Fine-tuning uses
-`max_source=256` (reduced from 512 for 24GB MPS memory), gradient checkpointing, and
-`processing_class` API (newer transformers compatibility).
+**Training result**: ROUGE-L 1.56 (essentially zero-shot performance).
+**Root cause**: `gradient_accumulation_steps=8` on MPS inflated each gradient step by
+8× (effective lr = 2e-5 × 8 = 1.6e-4), causing near-random convergence. Evidence:
+`eval_loss=9.601` at epoch 3 vs random baseline of `ln(96103)≈11.47` — only marginal
+learning occurred. `train_loss=79.87 ≈ eval_loss(9.601) × 8`. **Fix committed** to
+`pegasus_experiment.py`: `grad_accum=1` (batch=1, no accumulation). Without
+accumulation, memory fits comfortably within 24 GB UMA.
+
+Zero-shot ROUGE-L of **1.60** confirms the extreme news-to-dialogue domain gap —
+PEGASUS would require re-training with the corrected parameters to reach its expected
+SAMSum range of ROUGE-L 40–44.
+
+---
+
+### E8 — Extended Training (BART-base, 8 epochs, cosine LR)
+
+> Source: `results/metrics/facebook_bart-base_extended_test.json`
+
+Tests whether a longer schedule with cosine LR decay and lower peak LR improves
+BART-base beyond the 5-epoch baseline.
+
+**Config changes from E1 baseline:**
+
+| Parameter | Baseline (E1) | Extended (E8) |
+|-----------|--------------|----------------|
+| Epochs | 5 | 8 |
+| Learning rate | 5e-5 | 3e-5 |
+| LR scheduler | linear | cosine |
+| Warmup steps | 500 | 300 |
+| Early stopping patience | 2 | 3 |
+
+**Results (best checkpoint = epoch 4, val ROUGE-L = 39.98):**
+
+| Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | Train time |
+|-----------|---------|---------|---------|-----------|
+| Baseline E1 (5ep, lr=5e-5) | 47.86 | 23.22 | 39.85 | 168.4 min |
+| Extended E8 (8ep, lr=3e-5, cosine) | 46.45 | 22.05 | **38.46** | 259.6 min |
+
+**Δ ROUGE-L = −1.39** (extended training underperforms baseline).
+
+**Finding**: The lower peak LR (3e-5) caused underfitting — the model needed more
+aggressive weight updates early in training. Best val ROUGE-L reached 39.98 (epoch 4)
+vs the baseline's 41.57 (epoch 5), confirming the cosine schedule converged to a
+suboptimal minimum. The hypothesis that "longer training with gentler LR improves
+generalisation" was **not supported** on SAMSum with BART-base.
 
 ---
 

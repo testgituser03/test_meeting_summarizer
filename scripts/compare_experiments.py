@@ -86,9 +86,16 @@ def load_results(metrics_dir: Path) -> list[dict]:
         if data is None:
             print(f"  ⚠️  Skipping (unreadable): {path.name}", file=sys.stderr)
             continue
+        run_name = data.get("run_name", "")
+        # Normalise variant: if run_name contains "extended", promote variant
+        # to "extended" so idx key doesn't collide with base fine-tuned result
+        variant = data.get("variant", "—")
+        if "extended" in str(run_name).lower():
+            variant = "extended"
         finetuned_rows.append({
             "model":      data.get("model", "—"),
-            "variant":    data.get("variant", "—"),
+            "variant":    variant,
+            "run_name":   run_name,
             "training":   "fine-tuned",
             "rouge1":     float(data.get("rouge1", 0.0)),
             "rouge2":     float(data.get("rouge2", 0.0)),
@@ -243,7 +250,12 @@ def compute_deltas_and_flags(rows: list[dict]) -> None:
     # ── 3. Extended training delta ──────────────────────────────────────────
     bart_ext = idx.get(("facebook/bart-base", "extended", "fine-tuned"))
     if not bart_ext:
-        # Also check for run_name match
+        # Detect by run_name field (extended training stores variant=with_speakers
+        # but run_name=facebook_bart-base_extended)
+        bart_ext = next((r for r in rows if "extended" in str(r.get("run_name", "")).lower()
+                         and r.get("training") == "fine-tuned"), None)
+    if not bart_ext:
+        # Fallback: variant contains "extended"
         bart_ext = next((r for r in rows if "extended" in str(r.get("variant", "")).lower()
                          and r.get("training") == "fine-tuned"), None)
     if bart_ext and bart_ft:

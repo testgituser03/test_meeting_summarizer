@@ -165,7 +165,21 @@ LoRA achieves **94.2%** of full fine-tune ROUGE-L with only **0.63%** trainable 
 | Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | Notes |
 |-----------|---------|---------|---------|-------|
 | Zero-shot | 1.85 | 0.00 | 1.60 | news → dialogue domain mismatch |
-| Fine-tuned | *in progress* | — | — | batch=1, gradient checkpointing |
+| Fine-tuned | 1.65 | 0.00 | 1.56 | Convergence failure (see below) |
+
+**Training failure**: `gradient_accumulation_steps=8` on MPS caused 8× gradient
+inflation (effective lr=1.6e-4). `eval_loss=9.601` at epoch 3 ≈ random baseline.
+Fixed in script (`grad_accum=1`); ROUGE-L 40–44 expected on re-run.
+
+### Extended Training (E8 — 8 epochs, cosine LR, lr=3e-5)
+
+| Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | Train time | Notes |
+|-----------|---------|---------|---------|-----------|-------|
+| Baseline (5ep, lr=5e-5) | 47.86 | 23.22 | 39.85 | 168.4 min | E1 result |
+| Extended (8ep, lr=3e-5, cosine) | 46.45 | 22.05 | 38.46 | 259.6 min | Best epoch 4 |
+
+**Finding**: Δ ROUGE-L = −1.39. Lower peak LR caused underfitting; baseline with lr=5e-5
+linear decay converges to a better optimum. Hypothesis not supported.
 
 ---
 

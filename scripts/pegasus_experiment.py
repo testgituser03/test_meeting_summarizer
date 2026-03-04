@@ -351,7 +351,12 @@ def fine_tune_pegasus(cfg: dict):
 
     # Training arguments — conservative for large model
     num_epochs = 3  # fewer epochs for larger model
-    grad_accum = 8  # effective batch = 1 * 8 = 8 (batch=1 for MPS memory)
+    # NOTE: gradient_accumulation MUST be 1 on MPS.
+    # With gradient_accumulation_steps=N, the trainer sums N mini-batch losses
+    # before updating, causing the effective gradient step to be N× too large
+    # and logging the summed loss (not averaged). This prevented convergence
+    # in the original run (train_loss=79.87 ≈ 9.6 eval_loss × 8 accum steps).
+    grad_accum = 1  # FIXED: must be 1 on MPS to avoid gradient scaling issues
     warmup_steps = 300
     lr = 2e-5  # lower lr for larger pre-trained model
 

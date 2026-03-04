@@ -341,6 +341,7 @@ def main() -> None:
     result_json = {
         "model":                 MODEL_NAME,
         "variant":               VARIANT,
+        "run_name":              run_name,
         "dataset":               cfg["dataset_name"],
         "split":                 "test",
         "n_samples":             len(ds["test"]),
