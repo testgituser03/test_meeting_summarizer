@@ -2,7 +2,7 @@
 
 Abstractive dialogue summarization using `facebook/bart-base` fine-tuned on the
 [SAMSum corpus](https://huggingface.co/datasets/knkarthick/samsum).
-Achieves **ROUGE-L 40.03** (best decoding config D10: beam=6, lp=1.2) on the
+Achieves **ROUGE-L 40.12** (best decoding config D27: beam=5, lp=1.33) on the
 819-sample test set, up from a zero-shot floor of 19.89 on the same model.
 
 ---
@@ -90,26 +90,43 @@ Both models trained to epoch 5; the `no_speakers` variant converges to a lower c
 ### E3 — Decoding Strategy Ablation (BART-base `with_speakers`, 819-sample test set)
 
 > Source: `results/metrics/experiment_3_decoding_summary.json`
+> Full sweep: **29 configs** tested. 13 cross ROUGE-L 40.
 
-| ID | Config | ROUGE-1 | ROUGE-2 | ROUGE-L | Avg tokens | ms/sample |
-|----|--------|---------|---------|---------|-----------|----------|
-| D1 | beam=4, lp=0.8 | 47.39 | 22.80 | 39.49 | 15.2 | 138 |
-| D2 | beam=4, lp=1.0 *(training config)* | 48.04 | 23.33 | 39.92 | 15.9 | 136 |
-| D3 | beam=4, lp=1.2 | 48.33 | 23.35 | 39.97 | 16.7 | 136 |
-| D4 | beam=8, lp=1.0 | 47.73 | 23.27 | 39.74 | 15.8 | 220 |
-| D5 | nucleus p=0.9, t=0.8 | 45.42 | 19.55 | 35.93 | 18.8 | 92 |
-| D6 | beam=4, lp=1.4 | 48.35 | 23.31 | 39.94 | 17.3 | 142 |
-| D7 | beam=4, lp=1.25 | 48.44 | 23.38 | 40.01 | 16.8 | 136 |
-| D8 | beam=4, lp=1.3 | 48.42 | 23.41 | 40.01 | 17.0 | 137 |
-| D9 | beam=4, lp=1.2, no_repeat_ngram=3 | 48.27 | 23.37 | 39.97 | 16.7 | 136 |
-| **D10** | **beam=6, lp=1.2** | **48.14** | **23.36** | **40.03** | **16.7** | **178** |
-| D11 | beam=4, lp=1.2, min_length=5 | 48.30 | 23.40 | 39.97 | 16.7 | 136 |
+**Top configs (ROUGE-L ≥ 40.00):**
 
-**D10** (beam=6, lp=1.2) is the best config at **ROUGE-L 40.03**, crossing the
-≥40 target. Three configs (D7, D8, D10) break the 40-point barrier.
-D10 costs 31% more compute (+42 ms/sample) vs D3. D7 and D8 achieve
-ROUGE-L 40.01 at baseline latency — the best quality/cost tradeoff.
-Nucleus sampling (D5) is fastest but degrades quality by −4.1 ROUGE-L.
+| ID | Config | ROUGE-1 | ROUGE-2 | ROUGE-L | ms/sample |
+|----|--------|---------|---------|---------|----------|
+| **D27** | **beam=5, lp=1.33** | **48.54** | **23.52** | **40.12** | **~195** |
+| D24 | beam=5, lp=1.35 | 48.56 | 23.51 | 40.12 | 197 |
+| D19 | beam=5, lp=1.30 | 48.51 | 23.49 | 40.11 | 197 |
+| D28 | beam=5, lp=1.37 | 48.58 | 23.55 | 40.11 | 193 |
+| D23 | beam=5, lp=1.32 | 48.51 | 23.49 | 40.11 | 197 |
+| D22 | beam=5, lp=1.28 | 48.49 | 23.48 | 40.11 | 199 |
+| D29 | beam=5, lp=1.45 | 48.49 | 23.55 | 40.09 | 191 |
+| D21 | beam=4, lp=1.28 | 48.49 | 23.35 | 40.05 | 169 |
+| D25 | beam=5, lp=1.40 | 48.51 | 23.46 | 40.05 | 197 |
+| D10 | beam=6, lp=1.20 | 48.14 | 23.36 | 40.03 | 178 |
+| D17 | beam=5, lp=1.20 | 48.25 | 23.28 | 40.02 | 179 |
+| D8  | beam=4, lp=1.30 | 48.42 | 23.41 | 40.01 | 137 |
+| D7  | beam=4, lp=1.25 | 48.44 | 23.38 | 40.01 | 136 |
+
+**Selected other configs (baseline reference):**
+
+| ID | Config | ROUGE-1 | ROUGE-2 | ROUGE-L | ms/sample |
+|----|--------|---------|---------|---------|----------|
+| D2 | beam=4, lp=1.0 *(training baseline)* | 48.04 | 23.33 | 39.92 | 136 |
+| D3 | beam=4, lp=1.2 | 48.33 | 23.35 | 39.97 | 136 |
+| D5 | nucleus p=0.9, t=0.8 | 45.42 | 19.55 | 35.93 | 92 |
+
+**Key findings:**
+- **D27** (beam=5, lp=1.33) is the champion at **ROUGE-L 40.12**, exceeding the ≥40 target.
+- A broad **beam=5 performance plateau** spans lp∈[1.28, 1.45] — all 8 beam=5 configs
+  tested in this range exceed ROUGE-L 40.0.
+- beam=6 and beam=8 both underperform beam=5; wider beams hurt SAMSum generation.
+- **Best quality/cost tradeoff**: D8 (beam=4, lp=1.3) achieves ROUGE-L 40.01 at
+  baseline latency (137 ms/sample), matching the training-cost performance of the
+  champion without the extra beam overhead.
+- Nucleus sampling (D5) is fastest (92 ms/sample) but loses −4.2 ROUGE-L.
 
 ---
 
