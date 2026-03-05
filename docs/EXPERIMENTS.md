@@ -15,7 +15,7 @@ unless noted otherwise. Hardware: Apple M4 Pro · 24 GB UMA · MPS / BF16.
 | E1 fine-tuned | T5-small | 38.96 | 15.96 | 31.95 | 35 min, epoch 2 |
 | **E1 fine-tuned** | **BART-base** | **47.86** | **23.22** | **39.85** | **72 min, epoch 5** |
 | E2 ablation | BART-base (no_speakers) | 38.95 | 19.17 | 33.23 | Speaker tags stripped |
-| E3 champion | BART-base D27 beam=5 lp=1.33 | 48.54 | 23.52 | **40.12** | Best decoding config |
+| E3 champion | BART-base D27 beam=5 lp=1.33 | 48.48 | 23.55 | **40.12** | Best decoding config |
 | E4 faithfulness | BART-base with_speakers | 10.1% hallucination | — | — | NER-based entity cross-reference |
 | E5 LoRA | BART-base (r=16, 0.63% params) | 45.15 | 21.20 | 37.59 | 54.7 min |
 | E6 windowing | BART-base (split_speakers) | 47.11 | 22.55 | 39.08 | −0.77 RL vs with_speakers baseline |
@@ -38,7 +38,7 @@ Beam=4, length_penalty=1.0 for BART-base; `"summarize: "` prefix for T5-small.
 | BART-base (zero-shot) | 27.34 | 8.87 | 19.89 |
 | T5-small (zero-shot) | 27.60 | 7.63 | 22.19 |
 
-> **⚠️ Note on comparability**: E0 uses a 100-sample subset of the test set; all subsequent
+> **Note on comparability**: E0 uses a 100-sample subset of the test set; all subsequent
 > experiments (E1–E8) report on the full 819-sample test set. E0 vs E1 comparisons are
 > directional only — the sample sizes are not controlled.
 
@@ -113,7 +113,7 @@ suggesting the model leverages speaker identity for pronoun resolution and attri
 
 | ID | Config | ROUGE-1 | ROUGE-2 | ROUGE-L | ms/sample |
 |----|--------|---------|---------|---------|----------|
-| **D27** | **beam=5, lp=1.33** | **48.54** | **23.52** | **40.12** | **~195** |
+| **D27** | **beam=5, lp=1.33** | **48.48** | **23.55** | **40.12** | **~195** |
 | D24 | beam=5, lp=1.35 | 48.56 | 23.51 | 40.12 | 197 |
 | D19 | beam=5, lp=1.30 | 48.51 | 23.49 | 40.11 | 197 |
 | D28 | beam=5, lp=1.37 | 48.58 | 23.55 | 40.11 | 193 |
@@ -323,23 +323,23 @@ with BART-base. Earlier aggressive updates (5e-5) were more beneficial.
 
 | Category | Count | % |
 |----------|-------|---|
-| ✅ Correct | 4 | 20% |
-| ⚠️ Partial (speaker/fact error) | 8 | 40% |
-| ❌H Hallucination | 6 | 30% |
-| ❌G Over-generic | 2 | 10% |
-| ❌T Truncated | 0 | 0% |
+| Correct | 4 | 20% |
+| Partial (speaker/fact error) | 8 | 40% |
+| Hallucination | 6 | 30% |
+| Over-generic | 2 | 10% |
+| Truncated | 0 | 0% |
 
 ### Representative Examples
 
-**✅ Correct (idx=32, ROUGE-L=53.3)**
+**Correct (idx=32, ROUGE-L=53.3)**
 > Dialogue: Jack and May arrange cocktails. Generated: "Jack will have a drink with May later."  
 > Minor paraphrase ("a drink" for "cocktails"); core fact and participants correct.
 
-**❌H Hallucination (idx=654, ROUGE-L=12.8)**
+**Hallucination (idx=654, ROUGE-L=12.8)**
 > Dialogue: Richie and Clay discuss a Pogba goal. Generated: "Pogba scored the first goal of the season. He deserved to score after his first 60 minutes."  
 > Neither "first goal of the season" nor "first 60 minutes" appear in the dialogue.
 
-**❌G Over-generic (idx=281, ROUGE-L=32.3)**
+**Over-generic (idx=281, ROUGE-L=32.3)**
 > Dialogue: Miro's father fled Albania illegally in a fishing boat. Generated: "Miro told Abby the story of his father coming from Albania to the US in the early 1990s."  
 > Drops the key specificity — the illegal escape by fishing boat — which is the narrative's point.
 

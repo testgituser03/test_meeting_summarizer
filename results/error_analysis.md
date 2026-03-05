@@ -15,13 +15,13 @@
 Each summary receives **one primary label** from the five categories below.
 Where a summary has multiple issues, choose the most severe.
 
-| Label | Symbol | Criteria |
-|-------|--------|----------|
-| **Correct** | ✅ | Faithful to source, fluent, all key information present, no hallucinations. Minor rephrasing is fine. |
-| **Partial** | ⚠️ | One key fact, participant, or event is missing or slightly misrepresented. The summary is still broadly useful. |
-| **Hallucination** | ❌H | The summary asserts a fact, name, or event **not present in the source dialogue**. |
-| **Over-generic** | ❌G | The summary is factually safe but too vague to be useful (e.g. "They discussed plans"). No specifics from the dialogue appear. |
-| **Truncated** | ❌T | The summary ends mid-sentence, mid-clause, or is cut off before covering the main topic. |
+| Label | Code | Criteria |
+|-------|------|----------|
+| **Correct** | OK | Faithful to source, fluent, all key information present, no hallucinations. Minor rephrasing is fine. |
+| **Partial** | PARTIAL | One key fact, participant, or event is missing or slightly misrepresented. The summary is still broadly useful. |
+| **Hallucination** | HALLUC | The summary asserts a fact, name, or event **not present in the source dialogue**. |
+| **Over-generic** | GENERIC | The summary is factually safe but too vague to be useful (e.g. "They discussed plans"). No specifics from the dialogue appear. |
+| **Truncated** | TRUNC | The summary ends mid-sentence, mid-clause, or is cut off before covering the main topic. |
 
 **What to look for:**
 - **Hallucination**: Does the summary name a person, place, object, or claim that never appeared in the dialogue?
@@ -39,26 +39,26 @@ Where a summary has multiple issues, choose the most severe.
 
 | # | idx | ROUGE-L | Label | Notes (max 1 sentence — what's right or wrong?) |
 |---|-----|---------|-------|--------------------------------------------------|
-| 1 | 25 | 27.0 | ❌H | Swaps subjects: Nagoro (Japan) was Ollie's fear, not a group trip; Finland sculpture garden was Kelly's fear — both countries hallucinated/swapped. |
-| 2 | 30 | 19.1 | ❌H | "a box" hallucinated; source says "a few box" (informal for cash); summary misses the money meaning entirely. |
-| 3 | 32 | 53.3 | ✅ | Correctly captures the plan; "cocktails" → "a drink" is minor paraphrase, core fact preserved. |
-| 4 | 89 | 48.3 | ⚠️ | Meeting time/place correct but omits "bring all your papers" — an important instruction from Tom. |
-| 5 | 95 | 60.0 | ⚠️ | Mostly correct but attributes "get touch-up kit" to Gina rather than Flo ("Gonna have to!"). |
-| 6 | 104 | 42.1 | ❌H | Speaker attribution inverted — Maya is at the pharmacy buying for Randolph, not vice versa. |
-| 7 | 114 | 18.8 | ❌H | "going to go to Alene's place" not in source; real topic is Jenson's concern that Alene may have depression. |
-| 8 | 142 | 23.1 | ❌H | States Harry will call Ela himself; source has Harry begging Cindy to call on his behalf. |
-| 9 | 223 | 53.1 | ⚠️ | Adds "black dress" not mentioned in source; omits the 70-euro price detail present in reference. |
-| 10 | 228 | 50.0 | ⚠️ | Omits Marta as a participant; also omits that Kate may be closer to 6 pm. |
-| 11 | 250 | 23.1 | ❌G | States fact from source but gives zero context (why mobile invitation, Piper's surprised reaction). |
-| 12 | 281 | 32.3 | ❌G | Paraphrases one line but misses the key detail: the family left Albania illegally in the 1990s. |
-| 13 | 432 | 26.7 | ⚠️ | Focuses on Judie's gf's tattoo; misses main arc (Javier enquires → price too high → decides Colombia). |
-| 14 | 558 | 60.0 | ✅ | Captures meeting, venue, and food order; minor: says "have coffee with her" which is slightly presumed. |
-| 15 | 604 | 46.7 | ⚠️ | Misattributes feedback credit to Milena alone; Regina presented and 3 listeners are correctly noted. |
-| 16 | 654 | 12.8 | ❌H | "Pogba scored the first goal of the season" and "first 60 minutes" both hallucinated; dialogue only discusses his form/strike, no scoreline mentioned. |
-| 17 | 692 | 61.1 | ✅ | Core message correct; "fucking" is a blunt but accurate paraphrase of "dating"; workshop detail inferred reasonably. |
-| 18 | 754 | 33.3 | ⚠️ | Correct but drops the key "half hour" waiting plan; ref says "wait half an hour before going". |
-| 19 | 758 | 54.2 | ⚠️ | Misattributes: Tomas is broke/checking bank account, not Jeremy; correctly captures Sierra's offer. |
-| 20 | 759 | 44.9 | ✅ | German markets, sausage/beer, mulled wine all consistent with source; Camilla's Saturday errands omitted but not critical. |
+| 1 | 25 | 27.0 | HALLUC | Swaps subjects: Nagoro (Japan) was Ollie's fear, not a group trip; Finland sculpture garden was Kelly's fear — both countries hallucinated/swapped. |
+| 2 | 30 | 19.1 | HALLUC | "a box" hallucinated; source says "a few box" (informal for cash); summary misses the money meaning entirely. |
+| 3 | 32 | 53.3 | OK | Correctly captures the plan; "cocktails" → "a drink" is minor paraphrase, core fact preserved. |
+| 4 | 89 | 48.3 | PARTIAL | Meeting time/place correct but omits "bring all your papers" — an important instruction from Tom. |
+| 5 | 95 | 60.0 | PARTIAL | Mostly correct but attributes "get touch-up kit" to Gina rather than Flo ("Gonna have to!"). |
+| 6 | 104 | 42.1 | HALLUC | Speaker attribution inverted — Maya is at the pharmacy buying for Randolph, not vice versa. |
+| 7 | 114 | 18.8 | HALLUC | "going to go to Alene's place" not in source; real topic is Jenson's concern that Alene may have depression. |
+| 8 | 142 | 23.1 | HALLUC | States Harry will call Ela himself; source has Harry begging Cindy to call on his behalf. |
+| 9 | 223 | 53.1 | PARTIAL | Adds "black dress" not mentioned in source; omits the 70-euro price detail present in reference. |
+| 10 | 228 | 50.0 | PARTIAL | Omits Marta as a participant; also omits that Kate may be closer to 6 pm. |
+| 11 | 250 | 23.1 | GENERIC | States fact from source but gives zero context (why mobile invitation, Piper's surprised reaction). |
+| 12 | 281 | 32.3 | GENERIC | Paraphrases one line but misses the key detail: the family left Albania illegally in the 1990s. |
+| 13 | 432 | 26.7 | PARTIAL | Focuses on Judie's gf's tattoo; misses main arc (Javier enquires → price too high → decides Colombia). |
+| 14 | 558 | 60.0 | OK | Captures meeting, venue, and food order; minor: says "have coffee with her" which is slightly presumed. |
+| 15 | 604 | 46.7 | PARTIAL | Misattributes feedback credit to Milena alone; Regina presented and 3 listeners are correctly noted. |
+| 16 | 654 | 12.8 | HALLUC | "Pogba scored the first goal of the season" and "first 60 minutes" both hallucinated; dialogue only discusses his form/strike, no scoreline mentioned. |
+| 17 | 692 | 61.1 | OK | Core message correct; "fucking" is a blunt but accurate paraphrase of "dating"; workshop detail inferred reasonably. |
+| 18 | 754 | 33.3 | PARTIAL | Correct but drops the key "half hour" waiting plan; ref says "wait half an hour before going". |
+| 19 | 758 | 54.2 | PARTIAL | Misattributes: Tomas is broke/checking bank account, not Jeremy; correctly captures Sierra's offer. |
+| 20 | 759 | 44.9 | OK | German markets, sausage/beer, mulled wine all consistent with source; Camilla's Saturday errands omitted but not critical. |
 
 ---
 
@@ -69,7 +69,7 @@ in the sample, write "None observed in sample" and note any near-misses.
 
 ---
 
-### ✅ Correct (5 examples from sample)
+### Correct (5 examples from sample)
 
 > Examples where the model produced a faithful, fluent, complete summary.
 
@@ -101,11 +101,11 @@ in the sample, write "None observed in sample" and note any near-misses.
 - **idx**: 758
 - **Source** (first 200 chars): `Tomas: Has anybody received the grant yet? Sierra: no, not yet Jeremy: I haven't checked even Tomas: I'm completely broke Tomas: checking my bank account every hour`
 - **Generated**: `Sierra hasn't received the grant yet. Jeremy hasn't checked his bank account. Sierra will lend him some money.`
-- **Why correct** (partial — annotated ⚠️ in table): Grant-not-received fact correct; Sierra's lending offer correct. Note: Tomas is the broke one, not Jeremy — see ⚠️ annotation in row 19.
+- **Why correct** (partial — annotated PARTIAL in table): Grant-not-received fact correct; Sierra's lending offer correct. Note: Tomas is the broke one, not Jeremy — see PARTIAL annotation in row 19.
 
 ---
 
-### ⚠️ Partial (7 examples from sample)
+### Partial (7 examples from sample)
 
 > Examples where the summary is mostly right but omits one key fact or misattributes one speaker.
 
@@ -141,7 +141,7 @@ in the sample, write "None observed in sample" and note any near-misses.
 
 ---
 
-### ❌H Hallucination (5 clearest examples from sample)
+### Hallucination (5 clearest examples from sample)
 
 > Examples where the summary introduces a fact, name, or claim absent from the dialogue.
 > Cross-check against `hallucination_rate=10.1%` in `faithfulness_report.json`.
@@ -178,7 +178,7 @@ in the sample, write "None observed in sample" and note any near-misses.
 
 ---
 
-### ❌G Over-generic (2 examples from sample)
+### Over-generic (2 examples from sample)
 
 > Examples where the summary is factually safe but contains no specifics from the dialogue.
 
@@ -203,7 +203,7 @@ in the sample, write "None observed in sample" and note any near-misses.
 
 ---
 
-### ❌T Truncated (0 examples in sample)
+### Truncated (0 examples in sample)
 
 > Examples where the summary ends mid-sentence or is cut off.
 
@@ -217,11 +217,11 @@ in the sample, write "None observed in sample" and note any near-misses.
 
 | Category | Count | % of 20 |
 |----------|-------|---------|
-| ✅ Correct | 4 | 20% |
-| ⚠️ Partial | 8 | 40% |
-| ❌H Hallucination | 6 | 30% |
-| ❌G Over-generic | 2 | 10% |
-| ❌T Truncated | 0 | 0% |
+| Correct | 4 | 20% |
+| Partial | 8 | 40% |
+| Hallucination | 6 | 30% |
+| Over-generic | 2 | 10% |
+| Truncated | 0 | 0% |
 | **Total** | **20** | **100%** |
 
 > Correct examples: idx 32, 558, 692, 759  
@@ -236,8 +236,8 @@ in the sample, write "None observed in sample" and note any near-misses.
 - **Hallucination is the most severe error type (30%).** The model frequently confabulates speaker actions, event directions, or geographic facts that are absent from the dialogue. The worst case (idx=654, ROUGE-L=12.8) generates an entirely fabricated scoreline; the automated metric `hallucination_rate=10.1%` (spaCy NER) underestimates this because NER misses non-entity hallucinations like "scored the first goal."
 - **Partial errors dominate (40%), mostly speaker attribution mistakes.** The model often picks the wrong participant as the agent of an action (idx=95, 104, 604, 758). This correlates with `avg_speaker_preservation=75.5%` — roughly 1 in 4 summaries has a speaker-attribution issue.
 - **No truncation errors were observed.** The model always produces grammatically complete output, which is consistent with the BART seq2seq architecture and an appropriate `max_new_tokens` budget.
-- **NLI faithfulness of 0.308 maps roughly to the ✅+⚠️ rate (60%).** The NLI score represents the fraction of summary sentences entailed by the source; the manual annotation shows ~60% of summaries are broadly grounded, though many have subtle errors that NLI misses (e.g. direction-swapped actions still share vocabulary with the source).
-- **Length–ROUGE correlation is negative (r=-0.25).** Shorter generated summaries tend to score lower, suggesting the model sometimes over-compresses and drops critical content. This does not directly correspond to ❌G Over-generic, which is about vagueness rather than brevity.
+- **NLI faithfulness of 0.308 maps roughly to the Correct+Partial rate (60%).** The NLI score represents the fraction of summary sentences entailed by the source; the manual annotation shows ~60% of summaries are broadly grounded, though many have subtle errors that NLI misses (e.g. direction-swapped actions still share vocabulary with the source).
+- **Length–ROUGE correlation is negative (r=-0.25).** Shorter generated summaries tend to score lower, suggesting the model sometimes over-compresses and drops critical content. This does not directly correspond to Over-generic errors, which are about vagueness rather than brevity.
 
 ---
 
@@ -246,6 +246,6 @@ in the sample, write "None observed in sample" and note any near-misses.
 | Automated metric | Value | Manual interpretation |
 |------------------|-------|-----------------------|
 | `hallucination_rate` | 10.1% (83/819) | Manual sample finds 30% hallucination rate — gap because spaCy NER only catches entity-level hallucinations, not action-direction swaps or event fabrications. |
-| `avg_speaker_preservation` | 75.5% | Confirmed by ⚠️ Partial examples: idx 95, 104, 604, 758 all feature speaker attribution errors; 8/20 partial cases have at least one speaker issue. |
-| `avg_nli_faithfulness` | 0.3084 | Roughly 31% of summary sentences are entailed by source per DeBERTa-v3 NLI. Manual ✅ rate is 20% (strict) or 60% (✅+⚠️). NLI is more lenient than strict manual annotation. |
-| `length_rouge_correlation` | −0.2514 | Weak negative correlation; shorter summaries score lower. Does not match ❌G pattern — model is more likely to hallucinate than be vague when compressing aggressively. |
+| `avg_speaker_preservation` | 75.5% | Confirmed by Partial examples: idx 95, 104, 604, 758 all feature speaker attribution errors; 8/20 partial cases have at least one speaker issue. |
+| `avg_nli_faithfulness` | 0.3084 | Roughly 31% of summary sentences are entailed by source per DeBERTa-v3 NLI. Manual correct rate is 20% (strict) or 60% (correct+partial). NLI is more lenient than strict manual annotation. |
+| `length_rouge_correlation` | −0.2514 | Weak negative correlation; shorter summaries score lower. Does not match the Over-generic pattern — model is more likely to hallucinate than be vague when compressing aggressively. |
