@@ -5,11 +5,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Model ─────────────────────────────────────────────────────────────────────
-model_name: "facebook/bart-base"       # E1 complete: BART-base ROUGE-L 39.85 | T5-small 31.95; E2+E3 also use this model
+model_name: "facebook/bart-base"       # Primary seq2seq model for fine-tuning
 task_prefix: ""                        # BART: no task prefix; T5 uses "summarize: "
 
 # ── Tokenization ──────────────────────────────────────────────────────────────
-max_source_length: 512                 # Covers 99%+ of SAMSum dialogues (p99 ≈ 380 T5 tokens)
+max_source_length: 512                 # p99 dialogue = 525 T5 tokens; ~1% truncated at 512 (see data_audit.json)
 max_target_length: 128                 # SAMSum summary max ≈ 90 tokens; 128 is a safe ceiling
 
 # ── Training ──────────────────────────────────────────────────────────────────
@@ -55,4 +55,4 @@ save_total_limit: 2                    # Retain only 2 checkpoints on disk; ≈ 
 
 # ── Dataset ───────────────────────────────────────────────────────────────────
 dataset_name: "knkarthick/samsum"      # HuggingFace Hub ID; pre-downloaded to local cache
-dataset_variant: "with_speakers"      # restored for E3 decoding ablation (E1/E3 baseline)
+dataset_variant: "with_speakers"      # "with_speakers" preserves speaker tags; "no_speakers" strips them (E2 ablation)

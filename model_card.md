@@ -22,14 +22,14 @@ model-index:
           split: test
         metrics:
           - type: rouge1
-            value: 48.14
-            name: ROUGE-1 (D10 beam=6, lp=1.2)
+            value: 48.48
+            name: ROUGE-1 (D27 beam=5, lp=1.33)
           - type: rouge2
-            value: 23.36
-            name: ROUGE-2 (D10 beam=6, lp=1.2)
+            value: 23.55
+            name: ROUGE-2 (D27 beam=5, lp=1.33)
           - type: rougeL
-            value: 40.03
-            name: ROUGE-L (D10 beam=6, lp=1.2)
+            value: 40.12
+            name: ROUGE-L (D27 beam=5, lp=1.33)
 ---
 
 # bart-base-samsum-summarizer
@@ -37,7 +37,7 @@ model-index:
 `facebook/bart-base` fine-tuned on the [SAMSum](https://huggingface.co/datasets/knkarthick/samsum)
 dialogue summarization corpus.
 
-> **Note:** Front-matter ROUGE scores reflect the best decoding config (D10: beam=6, length_penalty=1.2).
+> **Note:** Front-matter ROUGE scores reflect the champion decoding config (D27: beam=5, length_penalty=1.33).
 > Default generation config (beam=4, lp=1.0) yields ROUGE-1=47.86, ROUGE-2=23.22, ROUGE-L=39.85.
 
 > **⚠️ License**: SAMSum is released under **CC BY-NC-ND 4.0** (non-commercial, no derivatives).
@@ -96,8 +96,8 @@ with torch.no_grad():
     out = model.generate(
         **inputs,
         max_new_tokens = 128,
-        num_beams      = 6,
-        length_penalty = 1.2,   # D10 best config (ROUGE-L 40.03)
+        num_beams      = 5,
+        length_penalty = 1.33,  # D27 champion config (ROUGE-L 40.12)
         early_stopping = True,
     )
 print(tokenizer.decode(out[0], skip_special_tokens=True))
@@ -114,9 +114,9 @@ All metrics are macro-averaged ROUGE F-measures × 100 on the 819-sample SAMSum 
 
 | Metric | Value |
 |--------|-------|
-| ROUGE-1 | 48.14 |
-| ROUGE-2 | 23.36 |
-| **ROUGE-L** | **40.03** *(best decoding: D10 beam=6, lp=1.2)* |
+| ROUGE-1 | 48.48 |
+| ROUGE-2 | 23.55 |
+| **ROUGE-L** | **40.12** *(champion: D27 beam=5, lp=1.33)* |
 | ROUGE-L (training config: beam=4, lp=1.0) | 39.92 |
 
 ### Comparison: Fine-Tuned vs Zero-Shot
@@ -124,7 +124,7 @@ All metrics are macro-averaged ROUGE F-measures × 100 on the 819-sample SAMSum 
 | | ROUGE-L |
 |--|---------|
 | BART-base zero-shot (100 samples) | 19.89 |
-| BART-base fine-tuned (819 samples) | **40.03** (+20.14) |
+| BART-base fine-tuned (819 samples) | **40.12** (+20.23) |
 
 ### Decoding Strategy Ablation (11 configs)
 
@@ -139,8 +139,10 @@ All metrics are macro-averaged ROUGE F-measures × 100 on the 819-sample SAMSum 
 | D7: beam=4, lp=1.25 | 40.01 | 16.8 | 136 |
 | D8: beam=4, lp=1.3 | 40.01 | 17.0 | 137 |
 | D9: beam=4, lp=1.2, nrng=3 | 39.97 | 16.7 | 136 |
-| **D10: beam=6, lp=1.2** | **40.03** | **16.7** | **178** |
+| D10: beam=6, lp=1.2 | 40.03 | 16.7 | 178 |
 | D11: beam=4, lp=1.2, min_len=5 | 39.97 | 16.7 | 136 |
+
+> Full 29-config sweep results in `results/metrics/decoding_D*.json`. Champion: **D27** (beam=5, lp=1.33) at ROUGE-L **40.12** — see `docs/EXPERIMENTS.md` for complete E3 table.
 
 ### Faithfulness Metrics
 

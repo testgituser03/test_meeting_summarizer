@@ -53,7 +53,7 @@ TASK_PREFIX = ""
 
 # Reduced batch sizes for 568M model on 24GB UMA
 EVAL_BATCH_SIZE  = 1
-TRAIN_BATCH_SIZE = 1  # 768M params requires batch=1 on 24GB MPS
+TRAIN_BATCH_SIZE = 2  # Increased from 1 for faster training (test if fits without checkpointing)
 
 # PEGASUS-specific: reduce source length to fit in MPS memory
 PEGASUS_MAX_SOURCE = 256  # 512 causes OOM; 256 covers 95%+ of SAMSum dialogues
@@ -118,7 +118,7 @@ def zeroshot_eval(cfg: dict):
     tokenizer = PegasusTokenizer.from_pretrained(PEGASUS_MODEL)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         PEGASUS_MODEL,
-        torch_dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,
+        dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,  # Fix: dtype= (Transformers 5.x); torch_dtype= is deprecated
     ).to(device)
     model.eval()
 
@@ -296,7 +296,7 @@ def fine_tune_pegasus(cfg: dict):
     print(f"  Model     : {PEGASUS_MODEL}")
     print(f"  Output    : {model_out}")
     print(f"  Device    : {device}  |  BF16: {cfg['use_bf16']}")
-    print(f"  Batch size: {TRAIN_BATCH_SIZE} (reduced for 568M model)")
+    print(f"  Batch size: {TRAIN_BATCH_SIZE} (optimized for speed)")
     print(f"{'─' * 62}")
 
     # Load tokenized dataset
@@ -312,19 +312,28 @@ def fine_tune_pegasus(cfg: dict):
     # Disable MPS memory watermark to allow full 24GB usage
     os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
 
-    # Load model with gradient checkpointing for memory efficiency
+    # Load model in BF16 directly to save memory (no gradient checkpointing —
+    # gradient_checkpointing_enable() + BF16 + MPS produces near-zero gradients
+    # because BF16 is non-deterministic on MPS: recomputed activations differ from
+    # originals, causing gradients to cancel → loss stuck flat across all epochs).
     model = AutoModelForSeq2SeqLM.from_pretrained(
         PEGASUS_MODEL,
-        torch_dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,
+        dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,  # Fix: dtype= (Transformers 5.x); torch_dtype= is deprecated
     )
-    model.gradient_checkpointing_enable()  # trade compute for memory
+    # NOTE: gradient_checkpointing intentionally disabled — see comment above
+
+    # Explicitly move model to MPS before Trainer takes ownership
+    # (Trainer auto-detects MPS but explicit placement ensures BF16 weights
+    # are on GPU before any optimizer state is initialized)
+    model = model.to(device)
 
     # Aggressively free cached MPS memory before training
     if torch.backends.mps.is_available():
         torch.mps.empty_cache()
 
     n_params = sum(p.numel() for p in model.parameters()) / 1e6
-    print(f"  Parameters : {n_params:.1f}M (gradient checkpointing ON)")
+    mem_gb = mps_memory_mb() / 1024
+    print(f"  Parameters : {n_params:.1f}M | Device: {next(model.parameters()).device} | MPS mem: {mem_gb:.2f} GB")
 
     # ROUGE compute_metrics
     _scorer = _rs.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
@@ -350,20 +359,15 @@ def fine_tune_pegasus(cfg: dict):
             "rougeL": round(sum(rL_vals) / n * 100, 4),
         }
 
-    # Training arguments — conservative for large model
-    num_epochs = 3  # fewer epochs for larger model
-    # NOTE: gradient_accumulation MUST be 1 on MPS.
-    # With gradient_accumulation_steps=N, the trainer sums N mini-batch losses
-    # before updating, causing the effective gradient step to be N× too large
-    # and logging the summed loss (not averaged). This prevented convergence
-    # in the original run (train_loss=79.87 ≈ 9.6 eval_loss × 8 accum steps).
-    grad_accum = 1  # FIXED: must be 1 on MPS to avoid gradient scaling issues
+    # Training arguments — optimized for speed on MPS
+    num_epochs = 1  # Reduced for faster training (increase if needed)
+    grad_accum = 1  # Must be 1 on MPS
     warmup_steps = 300
-    lr = 2e-5  # lower lr for larger pre-trained model
+    lr = 2e-5
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(ckpt_dir),
-        eval_strategy="epoch",
+        eval_strategy="no",  # Disable evaluation for speed (evaluate manually after)
         save_strategy="epoch",
         learning_rate=lr,
         per_device_train_batch_size=TRAIN_BATCH_SIZE,
@@ -377,7 +381,7 @@ def fine_tune_pegasus(cfg: dict):
         generation_max_length=cfg["max_target_length"],
         generation_num_beams=4,
         save_total_limit=2,
-        load_best_model_at_end=True,
+        load_best_model_at_end=False,  # Disabled since no eval
         metric_for_best_model="rougeL",
         greater_is_better=True,
         seed=cfg["seed"],
@@ -430,9 +434,11 @@ def fine_tune_pegasus(cfg: dict):
     test_results = trainer.evaluate(eval_dataset=ds["test"])
 
     best_epoch = 0.0
+    best_rl_seen = 0.0
     for entry in trainer.state.log_history:
         if "eval_rougeL" in entry:
-            if entry["eval_rougeL"] > best_epoch:
+            if entry["eval_rougeL"] > best_rl_seen:  # Fix: compare rougeL vs best rougeL (not vs epoch number)
+                best_rl_seen = entry["eval_rougeL"]
                 best_epoch = entry.get("epoch", 0.0)
 
     result = {

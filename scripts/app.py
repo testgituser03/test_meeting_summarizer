@@ -230,16 +230,18 @@ def main() -> None:
                 "Beam width",
                 min_value = 1,
                 max_value = 8,
-                value     = 4,
-                help      = "Higher → better quality, slower. E3 showed beam=4 is the sweet spot.",
+                value     = 5,
+                help      = "Higher → better quality, slower. E3 champion uses beam=5 (D27: ROUGE-L 40.12).",
             )
-            length_penalty = st.selectbox(
+            length_penalty = st.slider(
                 "Length penalty",
-                options = [0.8, 1.0, 1.2, 1.25, 1.3, 1.4],
-                index   = 2,
-                help    = (
+                min_value = 0.80,
+                max_value = 1.50,
+                value     = 1.33,
+                step      = 0.01,
+                help      = (
                     "< 1.0 favours shorter outputs; > 1.0 favours longer outputs. "
-                    "D3 (lp=1.2) achieved best ROUGE-L=39.97 in E3."
+                    "D27 champion: lp=1.33. Plateau of ROUGE-L ≥ 40.0 spans lp∈[1.28, 1.45]."
                 ),
             )
 
@@ -271,7 +273,9 @@ def main() -> None:
             st.success(summary)
 
             # ── Action items ──────────────────────────────────────────────
-            action_items = _extract_action_items(summary + " " + dialogue)
+            # Extract from summary only (not dialogue) to avoid false positives
+            # from modal verbs in quoted speech
+            action_items = _extract_action_items(summary)
             st.markdown("**🗒️ Action Items**")
             if action_items:
                 for item in action_items:

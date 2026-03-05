@@ -20,16 +20,27 @@ __pycache__/
 *.egg-info/
 .venv/
 
+# Jupyter
+notebooks/.ipynb_checkpoints/
+.ipynb_checkpoints/
+
 # macOS
 .DS_Store
 .AppleDouble
 
-# VS Code (optional)
+# VS Code
 .vscode/settings.json
 
 # Secrets
 .env
 *.token
 
-train_t5small.log
-train_bartbase.log
+# Training logs
+*.log
+
+# Stale snapshots / scratch files
+directory-tree.txt
+results/temp*.txt
+
+# Generated notebook plot outputs
+results/metrics/*.png

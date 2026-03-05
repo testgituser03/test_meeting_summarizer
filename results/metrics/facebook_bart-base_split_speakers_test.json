@@ -1,0 +1,27 @@
+{
+  "model": "facebook/bart-base",
+  "variant": "split_speakers",
+  "run_name": "facebook_bart-base_split_speakers",
+  "dataset": "knkarthick/samsum",
+  "split": "test",
+  "n_samples": 830,
+  "rouge1": 47.1108,
+  "rouge2": 22.5537,
+  "rougeL": 39.0839,
+  "training_time_minutes": 70.93,
+  "best_epoch": 4.0,
+  "best_val_rougeL": 40.6284,
+  "memory_profile_mb": {
+    "pre_load": 0.5,
+    "post_load": 1082.6,
+    "post_epoch1": 19864.8,
+    "post_train": 20064.2
+  },
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-05T18:09:15.506019+00:00"
+}

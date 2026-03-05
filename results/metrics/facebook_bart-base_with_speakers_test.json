@@ -22,5 +22,31 @@
     "length_penalty": 1.0,
     "early_stopping": true
   },
-  "timestamp": "2026-03-02T16:49:25.918209+00:00"
+  "timestamp": "2026-03-02T16:49:25.918209+00:00",
+  "bootstrap_ci": {
+    "rouge1": {
+      "mean": 48.0367,
+      "ci_low": 46.7422,
+      "ci_high": 49.2381,
+      "std": 17.8165,
+      "n_bootstrap": 1000,
+      "confidence": 0.95
+    },
+    "rouge2": {
+      "mean": 23.3286,
+      "ci_low": 21.9258,
+      "ci_high": 24.6298,
+      "std": 19.7194,
+      "n_bootstrap": 1000,
+      "confidence": 0.95
+    },
+    "rougeL": {
+      "mean": 39.9091,
+      "ci_low": 38.5274,
+      "ci_high": 41.1454,
+      "std": 18.1736,
+      "n_bootstrap": 1000,
+      "confidence": 0.95
+    }
+  }
 }

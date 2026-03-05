@@ -2,14 +2,14 @@
   "model": "google/pegasus-cnn_dailymail",
   "variant": "with_speakers",
   "n_samples": 819,
-  "rouge1": 1.09,
+  "rouge1": 1.19,
   "rouge2": 0.01,
-  "rougeL": 1.04,
-  "best_epoch": 2.0,
-  "training_time_minutes": 355.8,
-  "batch_size": 1,
+  "rougeL": 1.15,
+  "best_epoch": 1.0,
+  "training_time_minutes": 77.1,
+  "batch_size": 2,
   "gradient_accumulation": 1,
   "learning_rate": 2e-05,
-  "num_epochs": 3,
-  "timestamp": "2026-03-05T10:26:45.018259+00:00"
+  "num_epochs": 1,
+  "timestamp": "2026-03-05T13:29:10.177616+00:00"
 }
