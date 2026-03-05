@@ -174,19 +174,19 @@ are structurally different, providing a cross-domain transfer baseline.
 | Condition | ROUGE-1 | ROUGE-2 | ROUGE-L | N | Notes |
 |-----------|---------|---------|---------|---|-------|
 | Zero-shot | 1.85 | 0.00 | 1.60 | 100 | Massive domain mismatch (news → dialogue) |
-| Fine-tuned | 1.65 | 0.00 | 1.56 | 819 | Training convergence failed (see below) |
+| Fine-tuned | 1.09 | 0.01 | 1.04 | 819 | Training completed but no learning (see below) |
 
-**Training result**: ROUGE-L 1.56 (essentially zero-shot performance).
-**Root cause**: `gradient_accumulation_steps=8` on MPS inflated each gradient step by
-8× (effective lr = 2e-5 × 8 = 1.6e-4), causing near-random convergence. Evidence:
-`eval_loss=9.601` at epoch 3 vs random baseline of `ln(96103)≈11.47` — only marginal
-learning occurred. `train_loss=79.87 ≈ eval_loss(9.601) × 8`. **Fix committed** to
-`pegasus_experiment.py`: `grad_accum=1` (batch=1, no accumulation). Without
-accumulation, memory fits comfortably within 24 GB UMA.
+**Training result**: ROUGE-L 1.04 (worse than zero-shot performance).
+**Root cause**: Despite fixing `gradient_accumulation_steps=1`, the model showed no
+learning progress throughout training. Loss remained constant at ~10.0 across all
+epochs, indicating the model weights were not updating. This suggests PEGASUS's
+news-specific pre-training creates an insurmountable domain gap for conversational
+summarization. The model may require task-specific pre-training or architecture
+modifications to adapt to dialogue structures.
 
-Zero-shot ROUGE-L of **1.60** confirms the extreme news-to-dialogue domain gap —
-PEGASUS would require re-training with the corrected parameters to reach its expected
-SAMSum range of ROUGE-L 40–44.
+Zero-shot ROUGE-L of **1.60** confirms the extreme news-to-dialogue domain gap.
+PEGASUS is unsuitable for this cross-domain transfer task without significant
+architectural changes or continued pre-training on conversational data.
 
 ---
 
