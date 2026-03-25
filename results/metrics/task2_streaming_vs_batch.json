@@ -1,0 +1,70 @@
+[
+  {
+    "runtime": "FP_BASELINE",
+    "mode_comparison": [
+      {
+        "mode": "batch",
+        "latency_ms": 792.901,
+        "memory_mb": 1385.53,
+        "rougeL": 31.7017
+      },
+      {
+        "mode": "streaming",
+        "latency_ms": 165555.142,
+        "memory_mb": 1786.88,
+        "rougeL": 27.1755
+      }
+    ]
+  },
+  {
+    "runtime": "Q4_K_M",
+    "mode_comparison": [
+      {
+        "mode": "batch",
+        "latency_ms": 348.22,
+        "memory_mb": 2352.66,
+        "rougeL": 25.0846
+      },
+      {
+        "mode": "streaming",
+        "latency_ms": 56608.64,
+        "memory_mb": 2352.84,
+        "rougeL": 26.7632
+      }
+    ]
+  },
+  {
+    "runtime": "Q5_K_M",
+    "mode_comparison": [
+      {
+        "mode": "batch",
+        "latency_ms": 349.221,
+        "memory_mb": 676.66,
+        "rougeL": 25.0846
+      },
+      {
+        "mode": "streaming",
+        "latency_ms": 57213.518,
+        "memory_mb": 688.88,
+        "rougeL": 26.7632
+      }
+    ]
+  },
+  {
+    "runtime": "Q8_0",
+    "mode_comparison": [
+      {
+        "mode": "batch",
+        "latency_ms": 344.192,
+        "memory_mb": 729.73,
+        "rougeL": 25.0846
+      },
+      {
+        "mode": "streaming",
+        "latency_ms": 56458.549,
+        "memory_mb": 770.56,
+        "rougeL": 26.7632
+      }
+    ]
+  }
+]

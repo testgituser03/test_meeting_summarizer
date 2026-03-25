@@ -1,0 +1,202 @@
+{
+  "experiment": "task3_full_sweep_bart_with_speakers",
+  "n_points": 12,
+  "constraint": {
+    "max_rouge_drop_pct": 2.0
+  },
+  "layer_documentation": {
+    "model": "facebook/bart-base",
+    "n_decoder_layers": 6,
+    "requested_layers": [
+      6,
+      8,
+      10,
+      12
+    ],
+    "effective_layers": [
+      6
+    ],
+    "strongest_steering_layer": 6,
+    "note": "BART-base has 6 decoder layers. Only layer 6 is in range. For larger models (e.g. BART-large, T5-large), layers 8\u201312 would allow richer steering analysis; layer 6 is the sole valid layer for BART-base."
+  },
+  "best_per_method_under_constraint": {
+    "mean_diff": {
+      "alpha": 1.5,
+      "rougeL": 39.9986,
+      "rouge_drop_pct_vs_alpha0": -0.2243,
+      "action_proxy_rate": 0.6361,
+      "ms_per_sample": 138.04,
+      "n_samples": 819,
+      "method": "mean_diff",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    "pca_delta": {
+      "alpha": 1.5,
+      "rougeL": 39.8642,
+      "rouge_drop_pct_vs_alpha0": 0.1125,
+      "action_proxy_rate": 0.5836,
+      "ms_per_sample": 153.33,
+      "n_samples": 819,
+      "method": "pca_delta",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    "logistic": {
+      "alpha": 1.5,
+      "rougeL": 39.7224,
+      "rouge_drop_pct_vs_alpha0": 0.4678,
+      "action_proxy_rate": 0.5763,
+      "ms_per_sample": 141.27,
+      "n_samples": 819,
+      "method": "logistic",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    }
+  },
+  "global_best_under_constraint": {
+    "alpha": 1.5,
+    "rougeL": 39.9986,
+    "rouge_drop_pct_vs_alpha0": -0.2243,
+    "action_proxy_rate": 0.6361,
+    "ms_per_sample": 138.04,
+    "n_samples": 819,
+    "method": "mean_diff",
+    "layer": 6,
+    "baseline_rougeL": 39.9091
+  },
+  "rows": [
+    {
+      "alpha": 0.0,
+      "rougeL": 39.9091,
+      "rouge_drop_pct_vs_alpha0": 0.0,
+      "action_proxy_rate": 0.5678,
+      "ms_per_sample": 143.05,
+      "n_samples": 819,
+      "method": "mean_diff",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 0.5,
+      "rougeL": 39.9562,
+      "rouge_drop_pct_vs_alpha0": -0.118,
+      "action_proxy_rate": 0.5897,
+      "ms_per_sample": 140.96,
+      "n_samples": 819,
+      "method": "mean_diff",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 1.0,
+      "rougeL": 40.0666,
+      "rouge_drop_pct_vs_alpha0": -0.3946,
+      "action_proxy_rate": 0.6154,
+      "ms_per_sample": 137.59,
+      "n_samples": 819,
+      "method": "mean_diff",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 1.5,
+      "rougeL": 39.9986,
+      "rouge_drop_pct_vs_alpha0": -0.2243,
+      "action_proxy_rate": 0.6361,
+      "ms_per_sample": 138.04,
+      "n_samples": 819,
+      "method": "mean_diff",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 0.0,
+      "rougeL": 39.9091,
+      "rouge_drop_pct_vs_alpha0": 0.0,
+      "action_proxy_rate": 0.5678,
+      "ms_per_sample": 143.94,
+      "n_samples": 819,
+      "method": "pca_delta",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 0.5,
+      "rougeL": 39.6485,
+      "rouge_drop_pct_vs_alpha0": 0.653,
+      "action_proxy_rate": 0.569,
+      "ms_per_sample": 145.9,
+      "n_samples": 819,
+      "method": "pca_delta",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 1.0,
+      "rougeL": 39.7259,
+      "rouge_drop_pct_vs_alpha0": 0.459,
+      "action_proxy_rate": 0.5714,
+      "ms_per_sample": 147.68,
+      "n_samples": 819,
+      "method": "pca_delta",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 1.5,
+      "rougeL": 39.8642,
+      "rouge_drop_pct_vs_alpha0": 0.1125,
+      "action_proxy_rate": 0.5836,
+      "ms_per_sample": 153.33,
+      "n_samples": 819,
+      "method": "pca_delta",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 0.0,
+      "rougeL": 39.9091,
+      "rouge_drop_pct_vs_alpha0": 0.0,
+      "action_proxy_rate": 0.5678,
+      "ms_per_sample": 144.26,
+      "n_samples": 819,
+      "method": "logistic",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 0.5,
+      "rougeL": 39.7944,
+      "rouge_drop_pct_vs_alpha0": 0.2874,
+      "action_proxy_rate": 0.5653,
+      "ms_per_sample": 141.38,
+      "n_samples": 819,
+      "method": "logistic",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 1.0,
+      "rougeL": 39.7138,
+      "rouge_drop_pct_vs_alpha0": 0.4894,
+      "action_proxy_rate": 0.5678,
+      "ms_per_sample": 141.31,
+      "n_samples": 819,
+      "method": "logistic",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    },
+    {
+      "alpha": 1.5,
+      "rougeL": 39.7224,
+      "rouge_drop_pct_vs_alpha0": 0.4678,
+      "action_proxy_rate": 0.5763,
+      "ms_per_sample": 141.27,
+      "n_samples": 819,
+      "method": "logistic",
+      "layer": 6,
+      "baseline_rougeL": 39.9091
+    }
+  ]
+}

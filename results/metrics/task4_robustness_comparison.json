@@ -1,0 +1,11 @@
+{
+  "task": "task4_robustness_comparison",
+  "held_out_n": 100,
+  "model_pre": "models/best/t5-small_lora_task1",
+  "model_post": "models/best/t5-small_lora_task4",
+  "model_pre_resolved": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_task1/merged",
+  "model_post_resolved": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_task4/merged",
+  "rougeL_pre": 32.9129,
+  "rougeL_post": 32.8202,
+  "robustness_gain": -0.0927
+}

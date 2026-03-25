@@ -1,0 +1,89 @@
+{
+  "n_samples": 256,
+  "schema": {
+    "topics": "list of main topics discussed",
+    "action_items": "list of action items or next steps",
+    "decision": "main decision or outcome"
+  },
+  "metric_notes": {
+    "json_validity_rate": "Same as parse_success_rate (single source: prediction_to_structured_dict_with_trace).",
+    "parse_success_rate": "Model output parsed to schema without plain-text heuristic (1 - heuristic_fallback_rate).",
+    "heuristic_fallback_rate": "Fraction where gold_summary_to_structured_obj(pred) was used.",
+    "api_envelope_valid_rate": "Valid schema after prediction_to_structured_dict (often high; not model-JSON accuracy).",
+    "structured_contract_rate": "Alias of parse_success_rate (model-parse success; not API-envelope-only).",
+    "rougeL_structured": "ROUGE-L of raw model string vs plain gold summary (weak signal for JSON task).",
+    "rougeL_structured_json_vs_gold": "ROUGE-L of serialized pred dict vs serialized heuristic gold structured dict."
+  },
+  "results": [
+    {
+      "rank": 2,
+      "json_validity_rate": 0.0,
+      "parse_success_rate": 0.0,
+      "heuristic_fallback_rate": 1.0,
+      "api_envelope_valid_rate": 1.0,
+      "structured_contract_rate": 0.0,
+      "rougeL_structured": 31.1502,
+      "rougeL_structured_json_vs_gold": 36.9501,
+      "used_merged_structured": true,
+      "force_json_prefix": false,
+      "decoder_json_prefill": false,
+      "json_target_format_expected": "inner_no_braces"
+    },
+    {
+      "rank": 4,
+      "json_validity_rate": 0.0,
+      "parse_success_rate": 0.0,
+      "heuristic_fallback_rate": 1.0,
+      "api_envelope_valid_rate": 1.0,
+      "structured_contract_rate": 0.0,
+      "rougeL_structured": 31.6716,
+      "rougeL_structured_json_vs_gold": 37.4577,
+      "used_merged_structured": true,
+      "force_json_prefix": false,
+      "decoder_json_prefill": false,
+      "json_target_format_expected": "inner_no_braces"
+    },
+    {
+      "rank": 8,
+      "json_validity_rate": 0.0,
+      "parse_success_rate": 0.0,
+      "heuristic_fallback_rate": 1.0,
+      "api_envelope_valid_rate": 1.0,
+      "structured_contract_rate": 0.0,
+      "rougeL_structured": 31.3229,
+      "rougeL_structured_json_vs_gold": 37.3222,
+      "used_merged_structured": true,
+      "force_json_prefix": false,
+      "decoder_json_prefill": false,
+      "json_target_format_expected": "inner_no_braces"
+    },
+    {
+      "rank": 16,
+      "json_validity_rate": 0.0,
+      "parse_success_rate": 0.0,
+      "heuristic_fallback_rate": 1.0,
+      "api_envelope_valid_rate": 1.0,
+      "structured_contract_rate": 0.0,
+      "rougeL_structured": 34.8104,
+      "rougeL_structured_json_vs_gold": 40.0342,
+      "used_merged_structured": true,
+      "force_json_prefix": false,
+      "decoder_json_prefill": false,
+      "json_target_format_expected": "inner_no_braces"
+    },
+    {
+      "rank": 32,
+      "json_validity_rate": 0.0,
+      "parse_success_rate": 0.0,
+      "heuristic_fallback_rate": 1.0,
+      "api_envelope_valid_rate": 1.0,
+      "structured_contract_rate": 0.0,
+      "rougeL_structured": 33.7753,
+      "rougeL_structured_json_vs_gold": 39.0342,
+      "used_merged_structured": true,
+      "force_json_prefix": false,
+      "decoder_json_prefill": false,
+      "json_target_format_expected": "inner_no_braces"
+    }
+  ]
+}

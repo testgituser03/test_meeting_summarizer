@@ -1,0 +1,47 @@
+{
+  "benchmark_args": {
+    "eval_samples": 256,
+    "samples_per_length": 16,
+    "seed": 42,
+    "merged_model": "models/best/t5-small_lora_task1/merged",
+    "quant_root": "models/quantized/task2",
+    "config": "config.yaml",
+    "eval_only": true
+  },
+  "quant_labels_nominal": [
+    "Q4_K_M",
+    "Q5_K_M",
+    "Q8_0"
+  ],
+  "quant_runtime_note": "Folder names Q4_K_M / Q5_K_M / Q8_0 are nominal profiles; inference uses CTranslate2 (see task2_quantization_manifest.json), not GGUF K-quants.",
+  "results": [
+    {
+      "runtime": "FP_BASELINE",
+      "n_samples": 256,
+      "rougeL": 35.017,
+      "latency_ms": 462.515,
+      "throughput_summaries_per_sec": 2.1621
+    },
+    {
+      "runtime": "Q4_K_M",
+      "n_samples": 256,
+      "rougeL": 35.0113,
+      "latency_ms": 181.194,
+      "throughput_summaries_per_sec": 5.519
+    },
+    {
+      "runtime": "Q5_K_M",
+      "n_samples": 256,
+      "rougeL": 35.0113,
+      "latency_ms": 180.249,
+      "throughput_summaries_per_sec": 5.5479
+    },
+    {
+      "runtime": "Q8_0",
+      "n_samples": 256,
+      "rougeL": 35.0113,
+      "latency_ms": 179.232,
+      "throughput_summaries_per_sec": 5.5794
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+[
+  {
+    "runtime": "FP_BASELINE",
+    "length": 10,
+    "latency_ms": 548.799,
+    "throughput_summaries_per_sec": 1.8222,
+    "memory_mb": 437.66,
+    "rougeL": 29.5099
+  },
+  {
+    "runtime": "FP_BASELINE",
+    "length": 50,
+    "latency_ms": 542.115,
+    "throughput_summaries_per_sec": 1.8446,
+    "memory_mb": 74.81,
+    "rougeL": 37.3815
+  },
+  {
+    "runtime": "FP_BASELINE",
+    "length": 100,
+    "latency_ms": 723.199,
+    "throughput_summaries_per_sec": 1.3827,
+    "memory_mb": 63.72,
+    "rougeL": 31.562
+  },
+  {
+    "runtime": "FP_BASELINE",
+    "length": 200,
+    "latency_ms": 714.681,
+    "throughput_summaries_per_sec": 1.3992,
+    "memory_mb": 0.0,
+    "rougeL": 31.7017
+  },
+  {
+    "runtime": "Q4_K_M",
+    "length": 10,
+    "latency_ms": 161.298,
+    "throughput_summaries_per_sec": 6.1997,
+    "memory_mb": 67.95,
+    "rougeL": 31.3516
+  },
+  {
+    "runtime": "Q4_K_M",
+    "length": 50,
+    "latency_ms": 274.069,
+    "throughput_summaries_per_sec": 3.6487,
+    "memory_mb": 150.61,
+    "rougeL": 33.8721
+  },
+  {
+    "runtime": "Q4_K_M",
+    "length": 100,
+    "latency_ms": 307.41,
+    "throughput_summaries_per_sec": 3.253,
+    "memory_mb": 8.12,
+    "rougeL": 28.8208
+  },
+  {
+    "runtime": "Q4_K_M",
+    "length": 200,
+    "latency_ms": 356.343,
+    "throughput_summaries_per_sec": 2.8063,
+    "memory_mb": 18.89,
+    "rougeL": 25.0846
+  },
+  {
+    "runtime": "Q5_K_M",
+    "length": 10,
+    "latency_ms": 155.305,
+    "throughput_summaries_per_sec": 6.439,
+    "memory_mb": 71.94,
+    "rougeL": 31.3516
+  },
+  {
+    "runtime": "Q5_K_M",
+    "length": 50,
+    "latency_ms": 262.54,
+    "throughput_summaries_per_sec": 3.8089,
+    "memory_mb": 171.23,
+    "rougeL": 33.8721
+  },
+  {
+    "runtime": "Q5_K_M",
+    "length": 100,
+    "latency_ms": 297.295,
+    "throughput_summaries_per_sec": 3.3637,
+    "memory_mb": 40.22,
+    "rougeL": 28.8208
+  },
+  {
+    "runtime": "Q5_K_M",
+    "length": 200,
+    "latency_ms": 347.624,
+    "throughput_summaries_per_sec": 2.8767,
+    "memory_mb": 30.22,
+    "rougeL": 25.0846
+  },
+  {
+    "runtime": "Q8_0",
+    "length": 10,
+    "latency_ms": 153.161,
+    "throughput_summaries_per_sec": 6.5291,
+    "memory_mb": 52.91,
+    "rougeL": 31.3516
+  },
+  {
+    "runtime": "Q8_0",
+    "length": 50,
+    "latency_ms": 254.799,
+    "throughput_summaries_per_sec": 3.9247,
+    "memory_mb": 193.39,
+    "rougeL": 33.8721
+  },
+  {
+    "runtime": "Q8_0",
+    "length": 100,
+    "latency_ms": 295.117,
+    "throughput_summaries_per_sec": 3.3885,
+    "memory_mb": 36.56,
+    "rougeL": 28.8208
+  },
+  {
+    "runtime": "Q8_0",
+    "length": 200,
+    "latency_ms": 342.058,
+    "throughput_summaries_per_sec": 2.9235,
+    "memory_mb": 2.8,
+    "rougeL": 25.0846
+  }
+]

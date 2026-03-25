@@ -1,0 +1,89 @@
+{
+  "Q4_K_M": [
+    {
+      "processes": 1,
+      "wall_time_s": 8.1506,
+      "throughput_summaries_per_sec": 1.963,
+      "avg_cpu_util_percent": 28.76,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 842.95,
+      "total_process_rss_mb": 842.95
+    },
+    {
+      "processes": 2,
+      "wall_time_s": 7.4376,
+      "throughput_summaries_per_sec": 2.1512,
+      "avg_cpu_util_percent": 34.16,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 766.73,
+      "total_process_rss_mb": 1533.23
+    },
+    {
+      "processes": 4,
+      "wall_time_s": 10.991,
+      "throughput_summaries_per_sec": 1.4557,
+      "avg_cpu_util_percent": 48.11,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 627.27,
+      "total_process_rss_mb": 2376.17
+    }
+  ],
+  "Q5_K_M": [
+    {
+      "processes": 1,
+      "wall_time_s": 8.1356,
+      "throughput_summaries_per_sec": 1.9667,
+      "avg_cpu_util_percent": 30.78,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 834.09,
+      "total_process_rss_mb": 834.09
+    },
+    {
+      "processes": 2,
+      "wall_time_s": 7.6446,
+      "throughput_summaries_per_sec": 2.093,
+      "avg_cpu_util_percent": 43.09,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 848.02,
+      "total_process_rss_mb": 1695.61
+    },
+    {
+      "processes": 4,
+      "wall_time_s": 10.7346,
+      "throughput_summaries_per_sec": 1.4905,
+      "avg_cpu_util_percent": 61.08,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 568.22,
+      "total_process_rss_mb": 2259.35
+    }
+  ],
+  "Q8_0": [
+    {
+      "processes": 1,
+      "wall_time_s": 8.3741,
+      "throughput_summaries_per_sec": 1.9106,
+      "avg_cpu_util_percent": 36.18,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 853.98,
+      "total_process_rss_mb": 853.98
+    },
+    {
+      "processes": 2,
+      "wall_time_s": 7.2477,
+      "throughput_summaries_per_sec": 2.2076,
+      "avg_cpu_util_percent": 49.43,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 790.92,
+      "total_process_rss_mb": 1566.26
+    },
+    {
+      "processes": 4,
+      "wall_time_s": 10.9244,
+      "throughput_summaries_per_sec": 1.4646,
+      "avg_cpu_util_percent": 49.71,
+      "mps_driver_memory_mb": 1258.86,
+      "max_process_rss_mb": 623.08,
+      "total_process_rss_mb": 2447.06
+    }
+  ]
+}

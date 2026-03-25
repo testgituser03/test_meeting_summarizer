@@ -1,0 +1,82 @@
+{
+  "experiment": "Task 3 steering for focus control",
+  "meta": {
+    "run_name": "facebook_bart-base_with_speakers",
+    "model_name": "facebook/bart-base",
+    "variant": "with_speakers",
+    "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+    "split": "test",
+    "method": "mean_diff",
+    "layers": [
+      6
+    ],
+    "alphas": [
+      0.0,
+      0.5,
+      1.0,
+      1.5
+    ],
+    "seed": 42,
+    "n_samples": 819,
+    "generation_config": {
+      "num_beams": 4,
+      "max_new_tokens": 128,
+      "length_penalty": 1.0,
+      "early_stopping": true
+    },
+    "steering_type": "logit_bias_from_decoder_direction"
+  },
+  "constraint": {
+    "max_rouge_drop_pct": 2.0
+  },
+  "layer_summary": [
+    {
+      "layer": 6,
+      "baseline_alpha0_rougeL": 39.9091,
+      "candidates": [
+        {
+          "alpha": 0.0,
+          "rougeL": 39.9091,
+          "rouge_drop_pct_vs_alpha0": 0.0,
+          "action_proxy_rate": 0.5678,
+          "ms_per_sample": 143.05,
+          "n_samples": 819
+        },
+        {
+          "alpha": 0.5,
+          "rougeL": 39.9562,
+          "rouge_drop_pct_vs_alpha0": -0.118,
+          "action_proxy_rate": 0.5897,
+          "ms_per_sample": 140.96,
+          "n_samples": 819
+        },
+        {
+          "alpha": 1.0,
+          "rougeL": 40.0666,
+          "rouge_drop_pct_vs_alpha0": -0.3946,
+          "action_proxy_rate": 0.6154,
+          "ms_per_sample": 137.59,
+          "n_samples": 819
+        },
+        {
+          "alpha": 1.5,
+          "rougeL": 39.9986,
+          "rouge_drop_pct_vs_alpha0": -0.2243,
+          "action_proxy_rate": 0.6361,
+          "ms_per_sample": 138.04,
+          "n_samples": 819
+        }
+      ],
+      "best_alpha_under_rouge_constraint": 1.5,
+      "best_action_proxy_rate": 0.6361
+    }
+  ],
+  "human_eval": {
+    "template_csv": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/results/steering/facebook_bart-base_with_speakers_human_eval_template.csv",
+    "rubric": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/results/steering/human_eval_rubric.md",
+    "n_requested_samples": 50,
+    "ratings_csv": null,
+    "ratings_summary": null
+  },
+  "global_best": null
+}

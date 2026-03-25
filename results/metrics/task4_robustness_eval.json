@@ -1,0 +1,44 @@
+{
+  "task": "task4_robustness_eval",
+  "model_path": "models/best/t5-small_lora_task1",
+  "results": [
+    {
+      "split": "original",
+      "n_samples": 150,
+      "rougeL": 34.6402,
+      "action_completeness_proxy": 0.4133,
+      "ms_per_sample": 139.37,
+      "rougeL_by_pattern": {
+        "original": 34.64021061392856
+      }
+    },
+    {
+      "split": "adversarial",
+      "n_samples": 150,
+      "rougeL": 33.0752,
+      "action_completeness_proxy": 0.38,
+      "ms_per_sample": 143.06,
+      "rougeL_by_pattern": {
+        "tangent": 33.089350262339,
+        "very_long": 32.21331328454697,
+        "overlapping": 33.816540686830166,
+        "noise": 33.204316026286264
+      }
+    }
+  ],
+  "failure_modes_worst_rouge": [
+    {
+      "pattern": "very_long",
+      "rougeL": 32.21331328454697
+    },
+    {
+      "pattern": "tangent",
+      "rougeL": 33.089350262339
+    },
+    {
+      "pattern": "noise",
+      "rougeL": 33.204316026286264
+    }
+  ],
+  "coherence_template": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/results/metrics/task4_coherence_template.csv"
+}

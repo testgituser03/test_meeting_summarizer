@@ -1,0 +1,61 @@
+{
+  "task": "task2_quantization",
+  "timestamp": "2026-03-22T17:50:37.298039+00:00",
+  "requested_quants": [
+    "Q4_K_M",
+    "Q5_K_M",
+    "Q8_0"
+  ],
+  "merge": {
+    "merge_performed": false,
+    "reason": "Merged checkpoint already present.",
+    "merged_model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_task1/merged"
+  },
+  "feasibility": {
+    "model_type": "t5",
+    "architectures": [
+      "T5ForConditionalGeneration"
+    ],
+    "is_t5_family": true,
+    "llama_cpp": {
+      "detected": false,
+      "binaries": {
+        "llama-quantize": null,
+        "llama-cli": null,
+        "llama-convert-hf-to-gguf": null
+      }
+    },
+    "llama_cpp_gguf_path_supported": false,
+    "llama_cpp_reason": "T5 is an encoder-decoder architecture and this project does not have a validated llama.cpp seq2seq GGUF path. Falling back to CTranslate2 for production-grade quantized inference.",
+    "selected_runtime": "ctranslate2"
+  },
+  "artifacts": [
+    {
+      "requested_quant": "Q4_K_M",
+      "runtime": "ctranslate2",
+      "runtime_quantization": "int8_float16",
+      "gguf_equivalent": false,
+      "mapping_note": "Closest practical low-memory CT2 mode for T5 on Apple Silicon.",
+      "output_dir": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/quantized/task2/Q4_K_M",
+      "model_bin_mb": 58.11
+    },
+    {
+      "requested_quant": "Q5_K_M",
+      "runtime": "ctranslate2",
+      "runtime_quantization": "int8_bfloat16",
+      "gguf_equivalent": false,
+      "mapping_note": "Balanced CT2 mode: int8 weights with BF16 compute path.",
+      "output_dir": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/quantized/task2/Q5_K_M",
+      "model_bin_mb": 58.11
+    },
+    {
+      "requested_quant": "Q8_0",
+      "runtime": "ctranslate2",
+      "runtime_quantization": "int8",
+      "gguf_equivalent": false,
+      "mapping_note": "Closest practical 8-bit weight mode in CT2.",
+      "output_dir": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/quantized/task2/Q8_0",
+      "model_bin_mb": 58.15
+    }
+  ]
+}

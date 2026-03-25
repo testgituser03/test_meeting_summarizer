@@ -1,0 +1,27 @@
+{
+  "run_name": "facebook_bart-base_with_speakers",
+  "model_name": "facebook/bart-base",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/facebook_bart-base_with_speakers",
+  "variant": "with_speakers",
+  "split": "train",
+  "n_samples": 4000,
+  "n_action": 1928,
+  "n_topic": 2072,
+  "layers": [
+    6
+  ],
+  "hidden_size": 768,
+  "seed": 42,
+  "methods": [
+    "mean_diff",
+    "pca_delta",
+    "logistic"
+  ],
+  "diagnostics": [
+    {
+      "layer": 6,
+      "cos_pca_vs_mean": 0.066105,
+      "cos_logreg_vs_mean": 0.174501
+    }
+  ]
+}

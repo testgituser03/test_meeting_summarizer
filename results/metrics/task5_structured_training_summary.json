@@ -1,0 +1,12 @@
+{
+  "ranks": [
+    2,
+    4,
+    16,
+    32
+  ],
+  "max_samples": 1000,
+  "method": "supervised_json_inner_targets_from_gold_summary",
+  "json_target_format": "inner_no_braces",
+  "note": "T5 tokenizer drops `{`/`}` as <unk>; labels omit outer braces."
+}

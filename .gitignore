@@ -44,3 +44,10 @@ results/temp*.txt
 
 # Generated notebook plot outputs
 results/metrics/*.png
+
+results/metrics/task1_attention
+
+
+docs/rev-v2/*
+docs/rev-v1/*
+.github/copilot-instructions.md

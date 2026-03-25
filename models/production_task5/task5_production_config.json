@@ -1,0 +1,12 @@
+{
+  "task": "task5_production_baseline",
+  "lora_rank": 16,
+  "structured_schema": {
+    "topics": "list of main topics discussed",
+    "action_items": "list of action items or next steps",
+    "decision": "main decision or outcome"
+  },
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/production_task5",
+  "source": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_r16/merged_structured",
+  "structured_supervised": true
+}

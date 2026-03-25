@@ -344,3 +344,42 @@ with BART-base. Earlier aggressive updates (5e-5) were more beneficial.
 > Drops the key specificity — the illegal escape by fishing boat — which is the narrative's point.
 
 Full annotation available in [results/error_analysis.md](../results/error_analysis.md).
+
+---
+
+## Task 1 — Attention patterns (T5-small LoRA)
+
+> **Script**: `scripts/task1_attention_patterns.py` (`train`, `analyze`, …)
+
+Attention heatmaps and speaker aggregates use a **teacher-forced forward** on the full `generate()` output. That is **exploratory** (which tokens receive cross-attention mass) and **not** guaranteed to match step-by-step attention inside beam search with KV-cache — see the script docstring before claiming strict “what the model looked at while decoding.”
+
+---
+
+## Task 4 — Adversarial robustness (T5-small LoRA)
+
+> **Script**: `scripts/task4_adversarial.py` (`generate`, `eval`, `retrain`, `compare`)  
+> **Data**: `data/adversarial_task4/task4_adversarial_data.json`  
+> **Metrics**: `results/metrics/task4_robustness_eval.json`, `task4_robustness_comparison.json`, optional `task4_retrain_manifest.json`
+
+**Retrain loop (fixed):** ~**70% original / 30% adversarial** SAMSum train rows, `learning_rate=1e-5`, cosine schedule + **warmup**, up to **3 epochs**, **held-out adversarial ROUGE-L** each epoch (`predict_with_generate`), **early stopping** when the metric stops improving. Manifest records best checkpoint.
+
+**Compare:** Pre-model default `models/best/t5-small_lora_task1` vs post `models/best/t5-small_lora_task4` on **100 held-out** adversarial dialogues. Metrics JSON includes **`model_*_resolved`** paths (typically `…/merged`). **Coherence:** `task4_coherence_template.csv` is a **manual rating scaffold only** — no automated coherence score; fill and analyze offline if reporting human scores.
+
+---
+
+## Task 5 — LoRA ranks + structured output (T5-small)
+
+> **Script**: `scripts/task5_lora_structured.py` — `train`, **`train_structured`**, `eval`, `structured`, `sweet_spot`, `package`  
+> **Metrics**: `results/metrics/task5_rank_ablation.json`, `task5_structured_output.json`, `task5_sweet_spot.json`
+
+**Training:** `train` fits per-rank LoRA on SAMSum; rank 16 may alias `t5-small_lora_task1`. **`train_structured`** loads each rank’s **`merged/`** checkpoint, adds a second LoRA pass with supervised **inner JSON** targets (object body **without** `{` `}`) so T5 does not drop brace tokens as `<unk>`.
+
+**Structured eval:** `parse_success_rate` / `json_validity_rate` = fraction where **`prediction_to_structured_dict_with_trace`** does **not** use the plain-text heuristic (model JSON + schema). `heuristic_fallback_rate` = remainder. `api_envelope_valid_rate` = valid schema after the full helper (may stay high — not “JSON accuracy”). `rougeL_structured_json_vs_gold` = ROUGE on **serialized** structured dicts (more informative than raw string vs gold summary). **Sweet spot:** first try `parse_success_rate ≥ --min-parse-success` (default **0.2**) and free-form ROUGE within 1 pt of the largest rank; if none qualify, **`--fallback-rouge-only`** (default on) picks the **lowest** rank still within the ROUGE window. If still **`sweet_spot` is null**, **`package`** uses **`--default_rank`**. See **`selection_note`** in `task5_sweet_spot.json`.
+
+**Make:** `make task5-train-structured` before `make task5-structured` when testing `merged_structured/` weights.
+
+---
+
+## Task 2 — Quantization + benchmark (nominal quant labels)
+
+**Quant folders** `Q4_K_M` / `Q5_K_M` / `Q8_0` under `models/quantized/task2/` are **nominal** names; **`task2_quantization_manifest.json`** maps each to **CTranslate2** modes (not GGUF-equivalent K-quants). **`task2_eval_rougel.json`** wraps rows in **`benchmark_args`** (eval sample count, seed, paths) plus **`results`** — cite `benchmark_args.eval_samples` when reporting ROUGE.

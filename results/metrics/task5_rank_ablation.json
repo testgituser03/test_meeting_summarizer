@@ -1,0 +1,35 @@
+{
+  "n_samples": 256,
+  "results": [
+    {
+      "rank": 2,
+      "rougeL": 31.3957,
+      "latency_ms": 99.06,
+      "model_size_mb": 230.83
+    },
+    {
+      "rank": 4,
+      "rougeL": 31.2146,
+      "latency_ms": 91.53,
+      "model_size_mb": 230.83
+    },
+    {
+      "rank": 8,
+      "rougeL": 31.7165,
+      "latency_ms": 98.77,
+      "model_size_mb": 230.83
+    },
+    {
+      "rank": 16,
+      "rougeL": 34.1604,
+      "latency_ms": 115.49,
+      "model_size_mb": 230.83
+    },
+    {
+      "rank": 32,
+      "rougeL": 34.5376,
+      "latency_ms": 108.89,
+      "model_size_mb": 230.83
+    }
+  ]
+}

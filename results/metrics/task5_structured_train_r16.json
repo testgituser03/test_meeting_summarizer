@@ -1,0 +1,15 @@
+{
+  "rank": 16,
+  "n_train": 920,
+  "n_val": 80,
+  "max_target_len": 384,
+  "lora_r": 16,
+  "lora_target_modules": [
+    "q",
+    "k",
+    "v",
+    "o"
+  ],
+  "json_target_format": "inner_no_braces",
+  "output_dir": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_r16/merged_structured"
+}

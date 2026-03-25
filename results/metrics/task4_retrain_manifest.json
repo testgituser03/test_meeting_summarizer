@@ -1,0 +1,16 @@
+{
+  "task": "task4_retrain",
+  "n_train": 5000,
+  "n_original": 3500,
+  "n_adversarial": 1500,
+  "orig_frac_actual": 0.7,
+  "held_out_eval_n": 100,
+  "learning_rate": 1e-05,
+  "num_epochs_requested": 3,
+  "early_stopping_patience": 1,
+  "warmup_steps": 112,
+  "best_model_checkpoint": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/checkpoints/t5-small_lora_task4/checkpoint-625",
+  "best_eval_rougeL": 32.50243170562924,
+  "train_runtime_s": 339.8912,
+  "base_model": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_task1"
+}

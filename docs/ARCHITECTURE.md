@@ -40,6 +40,13 @@ config.yaml ──► scripts/ ──► data/cache/ ──► models/best/ ─�
 | `scripts/train_lora.py` | LoRA fine-tuning (rank=16, 0.63% trainable params) | `models/best/facebook_bart-base_lora/` |
 | `scripts/pegasus_experiment.py` | PEGASUS pipeline: download / zero-shot / preprocess / train | `models/best/google_pegasus-cnn_dailymail_with_speakers/` |
 
+**Extension (course / robustness tasks):**
+
+| Script | Purpose | Output |
+|--------|---------|--------|
+| `scripts/task4_adversarial.py` | Adversarial transcripts, robustness eval, **retrain** (70/30, low LR, ≤3 ep, early stop on held-out adv ROUGE-L), pre/post compare | `data/adversarial_task4/`, `models/best/t5-small_lora_task4/`, `results/metrics/task4_*.json` |
+| `scripts/task5_lora_structured.py` | LoRA rank ablation; **`train_structured`** (inner-JSON labels for T5); structured eval (strict + contract metrics); sweet spot; package | `models/best/t5-small_lora_r*/`, `merged_structured/`, `results/metrics/task5_*.json` |
+
 ### Stage 3 — Evaluation
 | Script | Purpose | Output |
 |--------|---------|--------|

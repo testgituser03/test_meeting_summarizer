@@ -668,10 +668,28 @@ python3 scripts/decoding_ablation.py        # E3: 29-config decoding grid search
 python3 scripts/evaluate_faithfulness.py    # E4: NER hallucination + NLI
 python3 scripts/bootstrap_ci.py             # 95 % CIs for E1 model comparison
 python3 scripts/compare_experiments.py      # aggregate all results → CSV + table
+
+# ── Task 4 — Adversarial robustness (T5-small LoRA) ─────────────────────────
+# Generate data first: make task4-generate  (or scripts/task4_adversarial.py generate)
+PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task4_adversarial.py retrain \
+    --base_model models/best/t5-small_lora_task1
+python3 scripts/task4_adversarial.py compare   # pre/post on held-out adversarial
+# Coherence: results/metrics/task4_coherence_template.csv is a manual rating sheet only (no auto scores).
+
+# ── Task 5 — LoRA rank sweep + structured JSON ─────────────────────────────
+PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task5_lora_structured.py train --ranks 2 4 8 16 32
+PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task5_lora_structured.py train_structured \
+    --ranks 2 4 8 16 32   # writes models/best/t5-small_lora_r*/merged_structured/
+python3 scripts/task5_lora_structured.py eval --ranks 2 4 8 16 32
+python3 scripts/task5_lora_structured.py structured --ranks 8   # parse_success + fallback metrics
+python3 scripts/task5_lora_structured.py sweet_spot              # optional: --min-parse-success 0.2
+python3 scripts/task5_lora_structured.py package                # uses sweet_spot or --default_rank
+# Sweet spot uses parse gate then optional ROUGE-only fallback; if still null, package uses --default_rank.
 ```
 
 Equivalent `make` targets exist for every command above (`make train`,
-`make evaluate`, `make decoding`, etc.).
+`make evaluate`, `make decoding`, etc.). Task 4/5: `make task4-retrain`,
+`make task5-train-structured`, `make task5-structured`, etc. (`make` lists all targets).
 
 ---
 
@@ -788,6 +806,11 @@ print(tokenizer.decode(ids[0], skip_special_tokens=True))
 - **CC BY-NC-ND 4.0:** Non-commercial use only. Commercial deployment or
   derivative model distribution requires explicit permission from the SAMSum
   dataset authors.
+- **T5-small structured JSON:** SentencePiece maps `{`/`}` to `<unk>`; supervised
+  JSON uses an **inner** representation (no outer braces) plus decode-time wrapping.
+  **Strict** JSON match rates may stay low versus a summarization prior; use
+  `prediction_to_structured_dict()` in `scripts/task5_lora_structured.py` when the
+  API requires guaranteed `topics` / `action_items` / `decision` keys.
 
 ---
 
