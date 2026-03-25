@@ -6,11 +6,11 @@
   "model_pre_resolved": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_task1/merged",
   "model_post_resolved": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/t5-small_lora_task4/merged",
   "rougeL_pre": 32.9129,
-  "rougeL_post": 32.8202,
-  "robustness_gain": -0.0927,
+  "rougeL_post": 32.8429,
+  "robustness_gain": -0.07,
   "rougeL_macro_by_pattern_pre": 32.9129,
-  "rougeL_macro_by_pattern_post": 32.8202,
-  "robustness_gain_macro_by_pattern": -0.0927,
+  "rougeL_macro_by_pattern_post": 32.8429,
+  "robustness_gain_macro_by_pattern": -0.07,
   "rougeL_by_pattern_pre": {
     "noise": 31.0611,
     "overlapping": 39.9159,
@@ -18,15 +18,15 @@
     "very_long": 28.5316
   },
   "rougeL_by_pattern_post": {
-    "noise": 31.1322,
-    "overlapping": 39.7521,
-    "tangent": 32.1812,
+    "noise": 31.0611,
+    "overlapping": 39.6905,
+    "tangent": 32.4049,
     "very_long": 28.2152
   },
   "robustness_gain_by_pattern": {
-    "noise": 0.0711,
-    "overlapping": -0.1638,
-    "tangent": 0.0381,
+    "noise": 0.0,
+    "overlapping": -0.2254,
+    "tangent": 0.2618,
     "very_long": -0.3164
   }
 }

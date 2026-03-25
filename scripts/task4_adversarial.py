@@ -4,7 +4,8 @@ Task 4 — Adversarial Meeting Transcripts & Robustness Testing.
 
 Subcommands:
   generate  — Create adversarial transcripts (overlap, noise, tangents, long)
-  eval      — Summarize 150 original + 150 adversarial; measure robustness
+  eval      — Summarize 150 original + 150 adversarial; optional ``--metrics-out`` + matching
+              coherence CSV so the default task1 baseline is not overwritten
   retrain   — Retrain T5-small LoRA: orig/adv mix (default 55/45), low LR, held-out ROUGE
               (macro mean over pattern buckets), early stopping
   compare   — Pre/post ROUGE-L on held-out adversarial test; quantify gain
@@ -344,6 +345,10 @@ def cmd_eval(args) -> None:
     with open(data_path) as f:
         data = json.load(f)
 
+    out_path = Path(args.metrics_out)
+    out_path = out_path if out_path.is_absolute() else PROJECT_ROOT / out_path
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
     results = []
 
     for split_name, samples in [("original", data["original"]), ("adversarial", data["adversarial"])]:
@@ -375,8 +380,13 @@ def cmd_eval(args) -> None:
             "rougeL_by_pattern": pattern_rouge,
         })
 
-    # Coherence template for human rating (1-5)
-    coherence_path = PROJECT_ROOT / "results" / "metrics" / "task4_coherence_template.csv"
+    # Coherence template for human rating (1-5) — avoid clobbering task1 scaffold when using --metrics-out
+    default_eval_out = PROJECT_ROOT / "results" / "metrics" / "task4_robustness_eval.json"
+    coherence_path = (
+        PROJECT_ROOT / "results" / "metrics" / "task4_coherence_template.csv"
+        if out_path.resolve() == default_eval_out.resolve()
+        else out_path.with_name(f"{out_path.stem}_coherence_template.csv")
+    )
     coherence_path.parent.mkdir(parents=True, exist_ok=True)
     all_samples = data["original"] + data["adversarial"]
     all_preds = _summarize_batch(model, tokenizer, device, [s["dialogue"] for s in all_samples], args.batch_size)
@@ -385,11 +395,6 @@ def cmd_eval(args) -> None:
         for i, (s, p) in enumerate(zip(all_samples, all_preds)):
             f.write(f"{i},{'original' if s['pattern']=='original' else 'adversarial'},{s['pattern']},"
                     f"{len(s['dialogue'])},{repr(s['summary'][:100])},{repr(p[:100])},,\n")
-
-    out_path = PROJECT_ROOT / "results" / "metrics" / "task4_robustness_eval.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w") as f:
-        json.dump({"model_path": str(args.model_path), "results": results}, f, indent=2)
 
     # Failure modes: which patterns cause worst ROUGE
     adv_result = next(r for r in results if r["split"] == "adversarial")
@@ -561,6 +566,12 @@ def cmd_retrain(args) -> None:
     total_steps = (len(tokenized_train) + args.batch_size - 1) // args.batch_size * args.num_epochs
     warmup_steps = min(args.warmup_steps, max(1, int(args.warmup_ratio * total_steps)))
 
+    held_metric_key = {
+        "macro": "eval_rougeL",
+        "micro": "eval_rougeL_micro",
+        "worst_pattern": "eval_rougeL_worst_pattern",
+    }[args.held_out_metric]
+
     train_args = Seq2SeqTrainingArguments(
         output_dir=str(PROJECT_ROOT / "models" / "checkpoints" / "t5-small_lora_task4"),
         num_train_epochs=args.num_epochs,
@@ -574,7 +585,7 @@ def cmd_retrain(args) -> None:
         save_strategy="epoch",
         save_total_limit=2,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_rougeL",
+        metric_for_best_model=held_metric_key,
         greater_is_better=True,
         predict_with_generate=True,
         generation_max_length=MAX_TARGET_LEN,
@@ -625,9 +636,12 @@ def cmd_retrain(args) -> None:
         "warmup_steps": warmup_steps,
         "best_model_checkpoint": best_ckpt,
         "best_eval_rougeL": best_metric,
+        "held_out_metric_for_best_model": args.held_out_metric,
+        "metric_for_best_model_key": held_metric_key,
         "eval_metric_note": (
-            "metric_for_best_model=eval_rougeL is macro mean of per-pattern mean ROUGE-L "
-            "on held-out (stratified); see eval_rougeL_micro for micro-average."
+            f"Early stopping optimizes {held_metric_key} ({args.held_out_metric} on held-out adversarial). "
+            "'micro' matches task4 compare primary rougeL; 'macro' = mean of per-pattern means; "
+            "'worst_pattern' maximizes the lowest pattern's ROUGE-L."
         ),
         "train_runtime_s": getattr(train_result, "metrics", {}).get("train_runtime"),
         "base_model": str(base_path),
@@ -638,7 +652,7 @@ def cmd_retrain(args) -> None:
         json.dump(manifest, f, indent=2)
 
     print(f"Saved retrained model to {out_dir}")
-    print(f"Best held-out ROUGE-L (pattern-macro, early-stop metric): {best_metric}")
+    print(f"Best held-out metric ({held_metric_key}, early-stop): {best_metric}")
     print(f"Manifest: {man_path}")
 
 
@@ -719,6 +733,11 @@ def main() -> None:
 
     p_eval = sub.add_parser("eval", help="Evaluate robustness on 150 original + 150 adversarial")
     p_eval.add_argument("--model_path", default="models/best/t5-small_lora_task1")
+    p_eval.add_argument(
+        "--metrics-out",
+        default="results/metrics/task4_robustness_eval.json",
+        help="Write eval JSON here (repo-relative or absolute). Use a separate path when comparing task1 vs task4 baselines.",
+    )
     p_eval.add_argument("--batch_size", type=int, default=8)
     p_eval.add_argument(
         "--allow-adapter-only",
@@ -743,6 +762,16 @@ def main() -> None:
     p_retrain.add_argument("--warmup_ratio", type=float, default=0.06)
     p_retrain.add_argument("--max_grad_norm", type=float, default=1.0)
     p_retrain.add_argument("--early_stopping_patience", type=int, default=2)
+    p_retrain.add_argument(
+        "--held-out-metric",
+        choices=["macro", "micro", "worst_pattern"],
+        default="micro",
+        dest="held_out_metric",
+        help=(
+            "Metric for load_best_model_at_end (held-out adversarial). "
+            "'micro' matches `compare` headline rougeL (default)."
+        ),
+    )
 
     p_compare = sub.add_parser("compare", help="Pre/post ROUGE-L on held-out adversarial")
     p_compare.add_argument("--model_pre", default="models/best/t5-small_lora_task1")

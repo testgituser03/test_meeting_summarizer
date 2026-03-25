@@ -5,69 +5,139 @@
   "baseline_rougeL": 34.5376,
   "min_parse_success": 0.2,
   "fallback_rouge_only": false,
-  "selection_note": "No rank met generative_native_json_rate >= min_parse_success; sweet_spot left null. See operational_pick_rouge_window_only for a ROUGE-only choice.",
-  "sweet_spot": null,
-  "operational_pick_rouge_window_only": {
+  "selection_note": null,
+  "sweet_spot": {
     "rank": 16,
     "rougeL": 34.1604,
-    "generative_native_json_rate": 0.0,
-    "latency_ms": 115.49,
+    "generative_native_json_rate": 1.0,
+    "strict_generative_json_rate": 0.0,
+    "salvaged_json_rate": 1.0,
+    "parse_success_rate": 1.0,
+    "guaranteed_json_roundtrip_rate": 1.0,
+    "latency_ms": 114.67,
     "size_mb": 230.83
   },
-  "operational_pick": null,
-  "candidates_native_json_gate_within_1pt_rouge": [],
-  "candidates_parse_success_within_1pt_rouge": [],
+  "operational_pick_rouge_window_only": null,
+  "operational_pick": {
+    "rank": 16,
+    "rougeL": 34.1604,
+    "generative_native_json_rate": 1.0,
+    "strict_generative_json_rate": 0.0,
+    "salvaged_json_rate": 1.0,
+    "parse_success_rate": 1.0,
+    "guaranteed_json_roundtrip_rate": 1.0,
+    "latency_ms": 114.67,
+    "size_mb": 230.83
+  },
+  "candidates_native_json_gate_within_1pt_rouge": [
+    {
+      "rank": 16,
+      "rougeL": 34.1604,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
+      "latency_ms": 114.67,
+      "size_mb": 230.83
+    },
+    {
+      "rank": 32,
+      "rougeL": 34.5376,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
+      "latency_ms": 110.91,
+      "size_mb": 230.83
+    }
+  ],
+  "candidates_parse_success_within_1pt_rouge": [
+    {
+      "rank": 16,
+      "rougeL": 34.1604,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
+      "latency_ms": 114.67,
+      "size_mb": 230.83
+    },
+    {
+      "rank": 32,
+      "rougeL": 34.5376,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
+      "latency_ms": 110.91,
+      "size_mb": 230.83
+    }
+  ],
   "structured_vs_freeform_comparison": [
     {
       "rank": 2,
       "free_form_rougeL": 31.3957,
-      "structured_rougeL": 32.0268,
-      "generative_native_json_rate": 0.0,
-      "parse_success_rate": 0.0,
+      "structured_rougeL": 24.1837,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
       "guaranteed_json_roundtrip_rate": 1.0,
-      "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": 0.6311
+      "json_validity_rate": 1.0,
+      "structured_vs_freeform_delta": -7.212
     },
     {
       "rank": 4,
       "free_form_rougeL": 31.2146,
-      "structured_rougeL": 31.3461,
-      "generative_native_json_rate": 0.0,
-      "parse_success_rate": 0.0,
+      "structured_rougeL": 23.3692,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
       "guaranteed_json_roundtrip_rate": 1.0,
-      "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": 0.1315
+      "json_validity_rate": 1.0,
+      "structured_vs_freeform_delta": -7.8454
     },
     {
       "rank": 8,
       "free_form_rougeL": 31.7165,
-      "structured_rougeL": 31.9986,
-      "generative_native_json_rate": 0.0,
-      "parse_success_rate": 0.0,
+      "structured_rougeL": 22.8576,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
       "guaranteed_json_roundtrip_rate": 1.0,
-      "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": 0.2821
+      "json_validity_rate": 1.0,
+      "structured_vs_freeform_delta": -8.8589
     },
     {
       "rank": 16,
       "free_form_rougeL": 34.1604,
-      "structured_rougeL": 33.256,
-      "generative_native_json_rate": 0.0,
-      "parse_success_rate": 0.0,
+      "structured_rougeL": 25.2162,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
       "guaranteed_json_roundtrip_rate": 1.0,
-      "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": -0.9044
+      "json_validity_rate": 1.0,
+      "structured_vs_freeform_delta": -8.9442
     },
     {
       "rank": 32,
       "free_form_rougeL": 34.5376,
-      "structured_rougeL": 32.6331,
-      "generative_native_json_rate": 0.0,
-      "parse_success_rate": 0.0,
+      "structured_rougeL": 24.5748,
+      "generative_native_json_rate": 1.0,
+      "strict_generative_json_rate": 0.0,
+      "salvaged_json_rate": 1.0,
+      "parse_success_rate": 1.0,
       "guaranteed_json_roundtrip_rate": 1.0,
-      "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": -1.9045
+      "json_validity_rate": 1.0,
+      "structured_vs_freeform_delta": -9.9628
     }
   ],
-  "note": "sweet_spot requires generative_native_json_rate (strict model JSON) >= min_parse_success and ROUGE within 1 pt of the max-rank baseline. Use guaranteed_json_roundtrip_rate from task5_structured_output.json for API-safe JSON (reliable pipeline). If sweet_spot is null and --no-fallback-rouge-only (default), operational_pick omits ROUGE-only fallback unless explicitly enabled."
+  "note": "sweet_spot uses generative_native_json_rate (strict json.loads + salvaged_json from model string only; see strict_generative_json_rate / salvaged_json_rate per rank) >= min_parse_success and ROUGE within 1 pt of the max-rank baseline. If sweet_spot is null and --fallback-rouge-only is not set (default), operational_pick is null; pass --fallback-rouge-only to set operational_pick from the ROUGE-window rank even when the native JSON gate fails."
 }

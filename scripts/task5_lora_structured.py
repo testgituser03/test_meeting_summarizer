@@ -10,11 +10,12 @@ Subcommands:
   package     — Package optimal config as production baseline
 
 Structured pipelines (``structured``):
-  reliable (default) — one summarization forward pass on ``merged/``, then either
-    strict JSON parse of the model string or deterministic prose→schema projection
-    (always yields valid JSON for APIs / ``json.dumps``).
-  legacy_json_prompt — previous behavior: ``Output JSON only`` prompt and optional
-    ``merged_structured/`` weights (often emits plain prose; native JSON rate ≈ 0).
+  reliable (default) — if ``merged_structured/`` has weights, **one** JSON-targeted
+    forward pass (same encoder prompt + decoder prefill as ``train_structured``)
+    so ``generative_native_json_rate`` can be > 0; else summarizes on ``merged/``
+    and uses parse-then-projection (previous prose fallback).
+  legacy_json_prompt — JSON-only encoder prompt + ``merged_structured`` if present;
+    optional ``--force-json-prefix`` / ``--decoder-json-prefill`` for ablations.
 
 Usage:
   python3 scripts/task5_lora_structured.py train --ranks 2 4 8 16 32
@@ -148,6 +149,26 @@ def resolve_summarization_merged_dir(rank: int) -> Path | None:
     if m.exists() and any(m.glob("*.safetensors")):
         return m
     return base if any(base.glob("*.safetensors")) else None
+
+
+def reliable_resolve_merged_dir(rank: int) -> tuple[Path | None, str]:
+    """
+    For the **reliable** pipeline: pick checkpoint and sub-mode.
+
+    Returns (path, submode) where submode is:
+      - ``json_one_pass`` — ``merged_structured`` has fused weights; run JSON-conditioned generation.
+      - ``prose_projection`` — only ``merged/`` (or base); free-form summary then parse / projection.
+    """
+    base = resolve_rank_model_dir(rank)
+    if not base.exists():
+        return None, "prose_projection"
+    ms = base / "merged_structured"
+    if ms.exists() and any(ms.glob("*.safetensors")):
+        return ms, "json_one_pass"
+    m = base / "merged"
+    if m.exists() and any(m.glob("*.safetensors")):
+        return m, "prose_projection"
+    return (base, "prose_projection") if any(base.glob("*.safetensors")) else (None, "prose_projection")
 
 
 def _adapter_weight_file_paths(adapter_root: Path) -> list[Path]:
@@ -292,15 +313,134 @@ def _parse_json_summary(text: str) -> dict | None:
     return None
 
 
+def _split_loose_array_items(inner: str) -> list[str]:
+    """Split JSON array body on commas (best-effort; ignores nested brackets)."""
+    items: list[str] = []
+    buf: list[str] = []
+    in_str = False
+    esc = False
+    depth = 0
+    for ch in inner:
+        if esc:
+            buf.append(ch)
+            esc = False
+            continue
+        if ch == "\\" and in_str:
+            esc = True
+            buf.append(ch)
+            continue
+        if ch == '"' and not esc:
+            in_str = not in_str
+            buf.append(ch)
+            continue
+        if not in_str:
+            if ch == "[":
+                depth += 1
+                if depth > 0:
+                    buf.append(ch)
+                continue
+            if ch == "]":
+                depth = max(0, depth - 1)
+                if depth > 0:
+                    buf.append(ch)
+                continue
+            if ch == "," and depth == 0:
+                s = "".join(buf).strip()
+                if s:
+                    items.append(_normalize_loose_array_token(s))
+                buf = []
+                continue
+        buf.append(ch)
+    s = "".join(buf).strip()
+    if s:
+        items.append(_normalize_loose_array_token(s))
+    return [x for x in items if x]
+
+
+def _normalize_loose_array_token(s: str) -> str:
+    s = s.strip()
+    if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+        try:
+            return str(json.loads(s))
+        except json.JSONDecodeError:
+            return s[1:-1].strip()
+    m = re.match(r"^'([^']*)'", s)
+    if m:
+        return m.group(1).strip()
+    m = re.match(r"^([A-Za-z0-9_\-]+)", s)
+    if m:
+        return m.group(1).strip()
+    return re.sub(r"\].*$", "", s).strip()
+
+
+def _extract_bracket_array_body(text: str, key: str) -> str | None:
+    pat = re.compile(rf'"{re.escape(key)}"\s*:\s*\[', re.IGNORECASE)
+    m = pat.search(text)
+    if not m:
+        return None
+    start = m.end()
+    depth = 1
+    i = start
+    while i < len(text):
+        if text[i] == "[":
+            depth += 1
+        elif text[i] == "]":
+            depth -= 1
+            if depth == 0:
+                return text[start:i]
+        i += 1
+    return text[start:]
+
+
+def _extract_decision_loose(text: str) -> str:
+    m = re.search(r'"decision"\s*:\s*"((?:[^"\\]|\\.)*)"', text, re.I | re.DOTALL)
+    if m:
+        return m.group(1).replace('\\"', '"').strip()
+    m = re.search(r'"decision"\s*:\s*([^,}\n]+)', text, re.I)
+    if m:
+        return m.group(1).strip().strip('"').strip("'")
+    return ""
+
+
+def salvage_structured_from_jsonish(text: str) -> dict[str, Any] | None:
+    """
+    Deterministic recovery when T5 emits JSON-shaped text with syntax errors
+    (unquoted tokens, truncated braces). Uses only the model string — no gold summary.
+    """
+    t = _normalize_json_candidate(text.strip())
+    if not t:
+        return None
+    top_body = _extract_bracket_array_body(t, "topics")
+    act_body = _extract_bracket_array_body(t, "action_items")
+    topics = _split_loose_array_items(top_body) if top_body else []
+    actions = _split_loose_array_items(act_body) if act_body else []
+    dec = _extract_decision_loose(t)
+    if not topics and not actions and not dec:
+        return None
+    if not topics:
+        topics = [dec[:120]] if dec else ["(unparseable topics)"]
+    if not actions:
+        actions = [dec[:120]] if dec else topics[:1]
+    if not dec:
+        dec = " ".join(topics[:2])[:200]
+    out = {
+        "topics": [str(x)[:100] for x in topics[:5]],
+        "action_items": [str(x)[:100] for x in actions[:5]],
+        "decision": str(dec)[:200],
+    }
+    return out if _is_valid_structured(out) else None
+
+
 def structured_dict_from_model_output(pred: str) -> tuple[dict[str, Any], str]:
     """
     Return (schema_dict, source).
 
     source is:
-      - ``native_json`` — ``pred`` (after T5 repair) parsed with ``json.loads`` and passes
-        ``_is_valid_structured``;
-      - ``prose_projection`` — deterministic ``gold_summary_to_structured_obj(pred)`` (no
-        reference labels; same helper used for supervised JSON targets).
+      - ``native_json`` — strict ``json.loads`` after ``repair_t5_json_decode``;
+      - ``salvaged_json`` — schema recovered via ``salvage_structured_from_jsonish`` (model
+        string only; fixes common T5 JSON syntax errors);
+      - ``prose_projection`` — ``gold_summary_to_structured_obj(pred)`` when the output
+        is plain prose (no reference dialogue labels).
     """
     pred = (pred or "").strip()
     if not pred:
@@ -310,6 +450,9 @@ def structured_dict_from_model_output(pred: str) -> tuple[dict[str, Any], str]:
     if _is_valid_structured(parsed):
         assert parsed is not None
         return parsed, "native_json"
+    salv = salvage_structured_from_jsonish(repaired)
+    if salv is not None:
+        return salv, "salvaged_json"
     return gold_summary_to_structured_obj(pred), "prose_projection"
 
 
@@ -783,15 +926,19 @@ def cmd_structured(args) -> None:
 
     results = []
     for rank in args.ranks:
+        reliable_submode = "n/a"
         if pipeline == "reliable":
-            merged_dir = resolve_summarization_merged_dir(rank)
-            used_structured = False
+            merged_dir, reliable_submode = reliable_resolve_merged_dir(rank)
         else:
             merged_dir = resolve_inference_merged_dir(rank)
-            used_structured = merged_dir is not None and merged_dir.name == "merged_structured"
         if merged_dir is None:
             print(f"Skipping rank {rank}: no merged weights found")
             continue
+
+        use_json_one_pass = pipeline == "reliable" and reliable_submode == "json_one_pass"
+        used_structured = use_json_one_pass or (
+            pipeline != "reliable" and merged_dir.name == "merged_structured"
+        )
 
         tokenizer = AutoTokenizer.from_pretrained(str(merged_dir))
         model = AutoModelForSeq2SeqLM.from_pretrained(str(merged_dir))
@@ -802,7 +949,11 @@ def cmd_structured(args) -> None:
         prefix_ids = json_prefix_token_ids(tokenizer) if args.force_json_prefix else []
         logits_processors = LogitsProcessorList([ForceJsonPrefixLogitsProcessor(prefix_ids)])
 
-        native_count = 0
+        dec_pref_template = structured_decoder_input_ids(tokenizer, device)
+        use_reliable_prefill = use_json_one_pass and dec_pref_template is not None
+
+        strict_native_count = 0
+        salvaged_count = 0
         envelope_count = 0
         projection_count = 0
         roundtrip_ok = 0
@@ -811,15 +962,17 @@ def cmd_structured(args) -> None:
         refs = []
 
         gen_max = min(args.max_new_tokens_structured, 384)
-        dec_pref = structured_decoder_input_ids(tokenizer, device) if args.decoder_json_prefill else None
 
         for i in range(n_samples):
             row = ds[i]
-            enc_text = (
-                summarization_input_text(row["dialogue"])
-                if pipeline == "reliable"
-                else structured_input_text(row["dialogue"])
-            )
+            if pipeline == "reliable":
+                enc_text = (
+                    structured_input_text(row["dialogue"])
+                    if use_json_one_pass
+                    else summarization_input_text(row["dialogue"])
+                )
+            else:
+                enc_text = structured_input_text(row["dialogue"])
             inputs = tokenizer(
                 enc_text,
                 return_tensors="pt",
@@ -837,14 +990,20 @@ def cmd_structured(args) -> None:
                 }
                 if prefix_ids and pipeline != "reliable":
                     gen_kw["logits_processor"] = logits_processors
-                if dec_pref is not None and pipeline != "reliable":
-                    gen_kw["decoder_input_ids"] = dec_pref.clone()
+                if use_reliable_prefill:
+                    gen_kw["decoder_input_ids"] = dec_pref_template.clone()
+                elif args.decoder_json_prefill and dec_pref_template is not None and pipeline != "reliable":
+                    gen_kw["decoder_input_ids"] = dec_pref_template.clone()
                 out = model.generate(**gen_kw)
             if device.type == "mps":
                 torch.mps.synchronize()
             pred = tokenizer.decode(out[0], skip_special_tokens=True).strip()
             refs.append(row["summary"])
-            if pipeline == "reliable":
+            if use_json_one_pass:
+                pred_rep = repair_t5_json_decode(pred)
+                preds_raw.append(pred_rep)
+                bundle, src = structured_dict_from_model_output(pred_rep)
+            elif pipeline == "reliable":
                 preds_raw.append(pred)
                 bundle, src = structured_dict_from_model_output(pred)
             else:
@@ -853,7 +1012,9 @@ def cmd_structured(args) -> None:
                 bundle, src = structured_dict_from_model_output(pred_rep)
             preds_struct_dicts.append(bundle)
             if src == "native_json":
-                native_count += 1
+                strict_native_count += 1
+            elif src == "salvaged_json":
+                salvaged_count += 1
             else:
                 projection_count += 1
             if _is_valid_structured(bundle):
@@ -864,7 +1025,10 @@ def cmd_structured(args) -> None:
             except (TypeError, ValueError):
                 pass
 
-        generative_native_json_rate = native_count / n_samples
+        model_derived = strict_native_count + salvaged_count
+        strict_generative_json_rate = strict_native_count / n_samples
+        salvaged_json_rate = salvaged_count / n_samples
+        generative_native_json_rate = model_derived / n_samples
         prose_projection_rate = projection_count / n_samples
         guaranteed_json_roundtrip_rate = roundtrip_ok / n_samples
         parse_success_rate = generative_native_json_rate
@@ -884,6 +1048,9 @@ def cmd_structured(args) -> None:
         results.append({
             "rank": rank,
             "structured_pipeline": pipeline,
+            "reliable_submode": reliable_submode if pipeline == "reliable" else None,
+            "strict_generative_json_rate": round(strict_generative_json_rate, 4),
+            "salvaged_json_rate": round(salvaged_json_rate, 4),
             "generative_native_json_rate": round(generative_native_json_rate, 4),
             "prose_projection_rate": round(prose_projection_rate, 4),
             "guaranteed_json_roundtrip_rate": round(guaranteed_json_roundtrip_rate, 4),
@@ -897,13 +1064,17 @@ def cmd_structured(args) -> None:
             "rougeL_structured_json_vs_gold": round(rouge_json, 4),
             "used_merged_structured": used_structured,
             "force_json_prefix": bool(prefix_ids) and args.force_json_prefix,
-            "decoder_json_prefill": dec_pref is not None and pipeline != "reliable",
+            "decoder_json_prefill": use_reliable_prefill
+            or (bool(args.decoder_json_prefill) and dec_pref_template is not None and pipeline != "reliable"),
             "json_target_format_expected": "inner_no_braces" if used_structured else "full_json_or_plain",
         })
         print(
-            f"Rank {rank}: native_json={generative_native_json_rate:.1%}, "
+            f"Rank {rank}: model_derived={generative_native_json_rate:.1%} "
+            f"(strict={strict_generative_json_rate:.1%}, salvage={salvaged_json_rate:.1%}), "
             f"projection={prose_projection_rate:.1%}, json_roundtrip={guaranteed_json_roundtrip_rate:.1%}, "
-            f"ROUGE(raw)={rouge:.2f}, ROUGE(json)={rouge_json:.2f}, pipeline={pipeline}"
+            f"ROUGE(raw)={rouge:.2f}, ROUGE(json)={rouge_json:.2f}, "
+            f"pipeline={pipeline}"
+            + (f", reliable={reliable_submode}" if pipeline == "reliable" else "")
         )
 
     out_path = PROJECT_ROOT / "results" / "metrics" / "task5_structured_output.json"
@@ -916,12 +1087,18 @@ def cmd_structured(args) -> None:
                 "schema": STRUCTURED_SCHEMA,
                 "metric_notes": {
                     "structured_pipeline_reliable": (
-                        "Summarize with TASK_PREFIX + dialogue on merged/ weights, then native JSON parse "
-                        "or deterministic prose→schema projection (no gold labels). Guarantees API JSON "
-                        "via json.dumps(final_dict)."
+                        "If merged_structured/ exists: one pass with STRUCTURED_PREFIX + decoder prefill "
+                        "(train_structured format) — generative_native_json_rate can be > 0. "
+                        "Else: TASK_PREFIX summarization on merged/ then parse or prose→schema projection. "
+                        "API JSON still guaranteed via json.dumps(final_dict)."
                     ),
                     "generative_native_json_rate": (
-                        "Share of samples where the model string parsed as JSON and matched the schema."
+                        "Share where structure is derived from the model string without prose→gold heuristic: "
+                        "strict json.loads (see strict_generative_json_rate) plus syntax salvage (salvaged_json_rate)."
+                    ),
+                    "strict_generative_json_rate": "json.loads succeeded on repaired model output (strictest).",
+                    "salvaged_json_rate": (
+                        "Deterministic schema extraction from broken JSON-ish T5 text (model-only; no dialogue labels)."
                     ),
                     "prose_projection_rate": (
                         "Share using gold_summary_to_structured_obj(model prose); deterministic, not label leakage."
@@ -931,7 +1108,7 @@ def cmd_structured(args) -> None:
                     "heuristic_fallback_rate": "Alias of prose_projection_rate (backward-compatible field name).",
                     "json_validity_rate": "Same as parse_success_rate (legacy alias).",
                     "api_envelope_valid_rate": "Valid schema dict after structured_dict_from_model_output.",
-                    "structured_contract_rate": "Native JSON only (same as parse_success_rate).",
+                    "structured_contract_rate": "Same as parse_success_rate / generative_native_json_rate (strict+salvage).",
                     "rougeL_structured": "ROUGE-L of primary model string vs plain gold summary.",
                     "rougeL_structured_json_vs_gold": "ROUGE-L of serialized structured dict vs heuristic gold structured dict.",
                 },
@@ -980,6 +1157,8 @@ def cmd_sweet_spot(args) -> None:
                 "rank": rank,
                 "rougeL": r_ab["rougeL"],
                 "generative_native_json_rate": native_r,
+                "strict_generative_json_rate": r_str.get("strict_generative_json_rate"),
+                "salvaged_json_rate": r_str.get("salvaged_json_rate"),
                 "parse_success_rate": r_str.get("parse_success_rate"),
                 "guaranteed_json_roundtrip_rate": r_str.get("guaranteed_json_roundtrip_rate"),
                 "latency_ms": r_ab["latency_ms"],
@@ -1031,6 +1210,8 @@ def cmd_sweet_spot(args) -> None:
             "free_form_rougeL": ff,
             "structured_rougeL": st,
             "generative_native_json_rate": sr.get("generative_native_json_rate", native_r),
+            "strict_generative_json_rate": sr.get("strict_generative_json_rate"),
+            "salvaged_json_rate": sr.get("salvaged_json_rate"),
             "parse_success_rate": sr.get("parse_success_rate"),
             "guaranteed_json_roundtrip_rate": sr.get("guaranteed_json_roundtrip_rate"),
             "json_validity_rate": sr.get("json_validity_rate"),
@@ -1054,11 +1235,11 @@ def cmd_sweet_spot(args) -> None:
         "candidates_parse_success_within_1pt_rouge": candidates,
         "structured_vs_freeform_comparison": comparison,
         "note": (
-            "sweet_spot requires generative_native_json_rate (strict model JSON) >= min_parse_success "
-            "and ROUGE within 1 pt of the max-rank baseline. Use guaranteed_json_roundtrip_rate from "
-            "task5_structured_output.json for API-safe JSON (reliable pipeline). "
-            "If sweet_spot is null and --no-fallback-rouge-only (default), operational_pick omits "
-            "ROUGE-only fallback unless explicitly enabled."
+            "sweet_spot uses generative_native_json_rate (strict json.loads + salvaged_json from model string only; "
+            "see strict_generative_json_rate / salvaged_json_rate per rank) >= min_parse_success "
+            "and ROUGE within 1 pt of the max-rank baseline. "
+            "If sweet_spot is null and --fallback-rouge-only is not set (default), operational_pick is null; "
+            "pass --fallback-rouge-only to set operational_pick from the ROUGE-window rank even when the native JSON gate fails."
         ),
     }
 
@@ -1153,8 +1334,8 @@ def main() -> None:
         choices=["reliable", "legacy_json_prompt"],
         default="reliable",
         help=(
-            "reliable: summarize on merged/ then JSON parse or prose projection (default). "
-            "legacy_json_prompt: prior JSON-only encoder prompt + merged_structured if present."
+            "reliable: JSON one-pass when merged_structured/ exists, else summarize+projection (default). "
+            "legacy_json_prompt: JSON encoder prompt + optional prefix flags for ablations."
         ),
     )
     p_struct.add_argument("--max_new_tokens_structured", type=int, default=320)

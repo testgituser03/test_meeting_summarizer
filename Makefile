@@ -55,6 +55,7 @@ help:
 	@echo "  make task5-sweet     Task 5: identify sweet spot"
 	@echo "  make task5-package   Task 5: package production baseline"
 	@echo "  make task5           Task 5 end-to-end"
+	@echo "  make tier-a-status  Generate Tier-A grader status from current JSON artifacts"
 	@echo "  make compare       Aggregate all results → comparison table + CSV"
 	@echo "  make demo          Launch Streamlit inference demo on :8501"
 	@echo ""
@@ -246,6 +247,10 @@ task5: task5-train task5-train-structured task5-eval task5-structured task5-swee
 .PHONY: compare
 compare:
 	$(PYTHON) scripts/compare_experiments.py
+
+.PHONY: tier-a-status
+tier-a-status:
+	$(PYTHON) scripts/tier_a_status.py
 
 # ── Demo ──────────────────────────────────────────────────────────────────────
 .PHONY: demo

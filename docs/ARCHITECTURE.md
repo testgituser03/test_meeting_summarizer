@@ -44,8 +44,8 @@ config.yaml ──► scripts/ ──► data/cache/ ──► models/best/ ─�
 
 | Script | Purpose | Output |
 |--------|---------|--------|
-| `scripts/task4_adversarial.py` | Adversarial transcripts, robustness eval, **retrain** (70/30, low LR, ≤3 ep, early stop on held-out adv ROUGE-L), pre/post compare | `data/adversarial_task4/`, `models/best/t5-small_lora_task4/`, `results/metrics/task4_*.json` |
-| `scripts/task5_lora_structured.py` | LoRA rank ablation; **`train_structured`** (inner-JSON labels for T5); structured eval (strict + contract metrics); sweet spot; package | `models/best/t5-small_lora_r*/`, `merged_structured/`, `results/metrics/task5_*.json` |
+| `scripts/task4_adversarial.py` | Adversarial transcripts, robustness **eval** (`--metrics-out`), **retrain** (~55/45 mix, LR 5e-6, ≤5 ep, pattern-macro held-out), **compare** | `data/adversarial_task4/`, `models/best/t5-small_lora_task4/`, `results/metrics/task4_*.json` |
+| `scripts/task5_lora_structured.py` | LoRA rank ablation; **`train_structured`** (inner-JSON labels for T5); structured eval (strict / salvage / generative-native metrics + round-trip); sweet spot; package | `models/best/t5-small_lora_r*/`, `merged_structured/`, `results/metrics/task5_*.json` |
 
 ### Stage 3 — Evaluation
 | Script | Purpose | Output |

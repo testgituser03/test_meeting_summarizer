@@ -7,7 +7,7 @@
       "n_samples": 150,
       "rougeL": 34.6402,
       "action_completeness_proxy": 0.4133,
-      "ms_per_sample": 139.37,
+      "ms_per_sample": 129.09,
       "rougeL_by_pattern": {
         "original": 34.64021061392856
       }
@@ -17,7 +17,7 @@
       "n_samples": 150,
       "rougeL": 33.0752,
       "action_completeness_proxy": 0.38,
-      "ms_per_sample": 143.06,
+      "ms_per_sample": 135.94,
       "rougeL_by_pattern": {
         "tangent": 33.089350262339,
         "very_long": 32.21331328454697,

@@ -25,7 +25,7 @@ ROUGE-L 40.12
 
 ## Contents
 
-1. [Overview](#1-overview)
+1. [Overview](#1-overview) — [Report alignment / Tier A](#report-alignment-grading--pdf-evidence) — [Tier B (PDF gaps)](#tier-b-pdf-letter-vs-this-repo-remaining-gaps)
 2. [Problem Statement](#2-problem-statement)
 3. [Dataset](#3-dataset)
 4. [Model Architecture](#4-model-architecture)
@@ -63,6 +63,31 @@ The project covers the full ML lifecycle: dataset acquisition and auditing,
 multi-model architecture comparison, systematic training ablations,
 decoding-strategy optimization, faithfulness and hallucination analysis,
 parameter-efficient fine-tuning (LoRA), and a live Streamlit inference demo.
+
+### Report alignment (grading / PDF evidence)
+
+**ROUGE-L ≥ 40 vs T5 (spec clarity).** Project copy often ties the ≥ 40 target to **T5-small**. In *this* repository the ≥ 40 result is **BART-base E1 + E3 decoding** (**39.85** → **40.12** with **D27** on the 819-sample test set). **T5-small E1** full fine-tune is **≈ 31.95** ROUGE-L — useful as a baseline but **not** the architecture that clears 40. Any write-up should name **BART + decoding** when citing 40.12; cite **T5** only with its own numbers unless you add further T5 training or decoding work.
+
+**Task 5 — structured JSON: what “valid JSON” means here.** Do not report stale tables where **`generative_native_json_rate = 0`** or **`sweet_spot: null`** if the committed artifacts say otherwise. **Authoritative files:** `results/metrics/task5_structured_output.json` (**`n_samples` = 64** in the committed run) and `results/metrics/task5_sweet_spot.json`. Definitions are spelled out in those files’ **`metric_notes`** field; in short:
+
+- **`strict_generative_json_rate`** — `json.loads` succeeds on the (repaired) model string alone (**strictest**; T5 often stays at **0** due to syntax drift).
+- **`salvaged_json_rate`** — deterministic recovery from **JSON-ish** model text (**no** prose→gold heuristic).
+- **`generative_native_json_rate`** — **strict + salvage** (“model-native” structure before falling back to prose projection). Legacy names **`parse_success_rate`** / **`json_validity_rate`** alias this in the evaluator output.
+- **`prose_projection_rate`** — schema filled via **`gold_summary_to_structured_obj`** from model **prose** (guaranteed keys; not counted as generative-native).
+
+With **`merged_structured/`** and pipeline **`reliable`**, the committed sweep rows show **`generative_native_json_rate` = 1.0**, **`salvaged_json_rate` = 1.0**, **`strict_generative_json_rate` = 0.0**, **`prose_projection_rate` = 0.0** per rank. **`task5_sweet_spot.json`** lists a **non-null `sweet_spot`** (e.g. **rank 16**, free-form ROUGE-L **34.16**, same parse fields as above). **`package`** resolves `sweet_spot` → `operational_pick` → `--default_rank` as documented in `docs/EXPERIMENTS.md`.
+
+**Task 4 — adversarial robustness narrative.** **`results/metrics/task4_robustness_comparison.json`** is the aggregate evidence on **100** held-out adversarial dialogues (micro ROUGE-L **32.91 → 32.84**, **`robustness_gain` ≈ −0.07**). **Per-pattern** **`robustness_gain_by_pattern`**: **noise** ≈ **0**, **overlapping** ≈ **−0.23**, **tangent** ≈ **+0.26**, **very_long** ≈ **−0.32**. It would be misleading to claim **overall** robustness improved; the honest story is **small negative aggregate** with **pattern-level trade-offs**.
+
+### Tier B: PDF letter vs this repo (remaining gaps)
+
+Tier **A** is about **honest, up-to-date** metrics and definitions. Tier **B** is what the PDF can still ask for **literally** but the repo does **not** fully satisfy **without more work or human labeling**:
+
+- **B1 — Strict JSON string:** If “valid JSON” means **`json.loads` on the raw model string**, the committed run still has **`strict_generative_json_rate` = 0** (T5 drift); **`generative_native_json_rate` = 1** uses **salvage** — see **`metric_notes`**. Raising **strict** is an **open research/engineering** loop (training, decoding), not a doc fix.
+- **B2 — Positive robustness gain:** Aggregate **`robustness_gain` ≈ −0.07** — **quantified**, but **not** a net **improvement** on the headline micro metric; per-pattern deltas must be reported together.
+- **B3 / B4 — Human sheets:** **`results/steering/facebook_bart-base_with_speakers_human_eval_template.csv`** (+ **`human_eval_rubric.md`**) and **`results/metrics/task4_coherence_template.csv`** (and **`…lora_task4_coherence_template.csv`**) are **scaffolds** — **fill** for full PDF credit, or **state** that coherence/action ratings are manual and pending.
+
+Full tables (P0/P1/P2 audit, Tier C disclosures, **`directory-tree.txt`** caveat): **`docs/rev-v1/REPO_CONTEXT.md`** (sections **Tier B**, **Tier C**, **`directory-tree.txt`** note).
 
 ---
 
@@ -686,7 +711,7 @@ python3 scripts/task5_lora_structured.py eval --ranks 2 4 8 16 32
 # eval → task5_rank_ablation.json: merged size, adapter_weights_mb, adapter_trainable_params
 python3 scripts/task5_lora_structured.py structured --ranks 8   # default: --structured-pipeline reliable
 python3 scripts/task5_lora_structured.py sweet_spot   # native-JSON gate; use --fallback-rouge-only if desired
-python3 scripts/task5_lora_structured.py package                # uses sweet_spot or --default_rank
+python3 scripts/task5_lora_structured.py package                # committed: sweet_spot rank 16 → task5_production_config.json; else operational_pick / --default_rank
 # Reliable pipeline: 100% JSON round-trip via projection when needed; native JSON rate is separate (see metric_notes).
 ```
 
@@ -749,8 +774,7 @@ Paste a dialogue into the text area and click **Summarize**. Adjust beam width
 and length penalty in the settings expander to reproduce the D27 champion
 configuration (`num_beams=5`, `length_penalty=1.33`). The app also renders the
 Task 5 schema (`topics`, `action_items`, `decision`) using the same
-`structured_dict_from_model_output` path as offline eval (native JSON if the
-model emits it; otherwise deterministic prose→schema projection).
+`structured_dict_from_model_output` path as offline eval (strict **`json.loads`** if applicable, else JSON-ish **salvage**, else prose→schema projection — see **`metric_notes`** in `task5_structured_output.json`).
 
 ### Python API
 

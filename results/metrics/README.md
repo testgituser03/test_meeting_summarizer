@@ -4,6 +4,8 @@ This directory contains all per-experiment JSON output files. Every JSON file
 is a direct product of a deterministic, reproducible script run and serves as
 the primary evidence for reported metric values.
 
+**Grading context:** Tier **A** (what to cite + definitions) and Tier **B** (strict JSON vs salvage, Task 4 gain, human CSV gaps) are summarized in **`docs/rev-v1/REPO_CONTEXT.md`** and **`README.md`** § *Report alignment* / *Tier B*. **`docs/rev-v1/directory-tree.txt`** is a snapshot and may lag this folder.
+
 ---
 
 ## File Count
@@ -90,9 +92,11 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 
 | File | Description |
 |------|-------------|
-| `task4_robustness_eval.json` | ROUGE-L on 150 original + 150 adversarial; failure modes; action completeness |
-| `task4_coherence_template.csv` | **Template only** — empty human rating scaffold (1–5 coherence); not filled automatically |
-| `task4_robustness_comparison.json` | Pre/post ROUGE-L on held-out adversarial; `model_*_resolved` = checkpoint path used (usually `merged/`) |
+| `task4_robustness_eval.json` | 150+150 ROUGE-L — default **`t5-small_lora_task1`** baseline |
+| `task4_robustness_eval_lora_task4.json` | Same split for **`t5-small_lora_task4`** after `retrain` (`eval --metrics-out …`) |
+| `task4_coherence_template.csv` | **Template only** — paired with default `task4_robustness_eval.json` (task1 preds) |
+| `task4_robustness_eval_lora_task4_coherence_template.csv` | Same scaffold for **`eval --metrics-out …lora_task4.json`** (task4 preds) |
+| `task4_robustness_comparison.json` | Pre/post on **100** held-out; micro **`robustness_gain`** (committed **≈ −0.07**) + **`robustness_gain_by_pattern`**; `model_*_resolved` → `merged/` — cite aggregate **and** per-pattern in write-ups |
 | `task4_retrain_manifest.json` | Retrain hyperparameters (mix, LR, epochs, pattern-macro early-stop metric, best checkpoint) when `retrain` was run |
 
 ### Task 5 Outputs — LoRA Rank & Structured Output
@@ -100,10 +104,10 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 | File | Description |
 |------|-------------|
 | `task5_rank_ablation.json` | Per rank: ROUGE-L, latency, **`model_size_mb`** (merged), **`adapter_weights_mb`**, **`adapter_trainable_params`**; see `metric_notes` |
-| `task5_structured_output.json` | Per rank: `generative_native_json_rate`, `guaranteed_json_roundtrip_rate`, legacy aliases, `rougeL_structured`, etc.; see `metric_notes` |
+| `task5_structured_output.json` | Per rank: **`strict_generative_json_rate`** (`json.loads` strictest), **`salvaged_json_rate`** (JSON-ish recovery), **`generative_native_json_rate`** (strict+salvage; aliases `parse_success_rate` / `json_validity_rate`), `prose_projection_rate`, `guaranteed_json_roundtrip_rate`, `rougeL_structured`; **`metric_notes`** defines terms for graders (differs from “only raw `json.loads` on the string”). Committed **`reliable` + `merged_structured`**: native rate **1.0**, strict often **0** (T5 drift), `n_samples` in file (**64** in repo snapshot) |
 | `task5_structured_train_r*.json` | Per-rank manifest from `train_structured` (samples, LoRA config, `json_target_format`) |
 | `task5_structured_training_summary.json` | Aggregate summary of structured training run |
-| `task5_sweet_spot.json` | Native-JSON gate + ROUGE window; optional `--fallback-rouge-only`; `package` falls back to `--default_rank` |
+| `task5_sweet_spot.json` | Native-JSON gate + ROUGE window; committed file has **non-null `sweet_spot`** (e.g. rank **16**). Optional `--fallback-rouge-only` if gate fails; `package` falls back through `operational_pick` → `--default_rank` |
 
 Related non-metrics artifacts written outside this folder:
 

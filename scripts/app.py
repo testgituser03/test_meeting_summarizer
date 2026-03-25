@@ -19,6 +19,7 @@ Usage:
 """
 
 import importlib.util
+import json
 import re
 import sys
 import time
@@ -42,6 +43,8 @@ _task5 = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_task5)
 structured_dict_from_model_output = _task5.structured_dict_from_model_output
+structured_input_text = _task5.structured_input_text
+structured_decoder_input_ids = _task5.structured_decoder_input_ids
 STRUCTURED_SCHEMA = _task5.STRUCTURED_SCHEMA
 TASK_PREFIX_T5 = _task5.TASK_PREFIX
 
@@ -184,6 +187,54 @@ def _generate(
     return summary, latency_ms
 
 
+def _task5_packaging_config(model_path: str) -> dict[str, Any] | None:
+    cfg_path = Path(model_path).resolve() / "task5_production_config.json"
+    if not cfg_path.is_file():
+        return None
+    with open(cfg_path) as f:
+        return json.load(f)
+
+
+def _generate_json_supervised_t5(
+    dialogue: str,
+    tokenizer,
+    model,
+    device: torch.device,
+    cfg: dict,
+    num_beams: int,
+    length_penalty: float,
+) -> tuple[str, float]:
+    """``train_structured``-aligned generation: JSON inner format + decoder prefill."""
+    enc_text = structured_input_text(dialogue)
+    inputs = tokenizer(
+        enc_text,
+        return_tensors="pt",
+        max_length=cfg["max_source_length"],
+        truncation=True,
+    ).to(device)
+    dec_pref = structured_decoder_input_ids(tokenizer, device)
+    max_new = min(320, max(int(cfg.get("max_target_length", 128)) * 3, 256))
+
+    t_start = time.perf_counter()
+    with torch.no_grad():
+        gen_kw: dict[str, Any] = {
+            **inputs,
+            "max_new_tokens": max_new,
+            "num_beams": num_beams,
+            "length_penalty": length_penalty,
+            "early_stopping": True,
+            "repetition_penalty": 1.12,
+        }
+        if dec_pref is not None:
+            gen_kw["decoder_input_ids"] = dec_pref
+        out = model.generate(**gen_kw)
+    if device.type == "mps":
+        torch.mps.synchronize()
+    latency_ms = (time.perf_counter() - t_start) * 1000.0
+    summary = tokenizer.decode(out[0], skip_special_tokens=True).strip()
+    return summary, latency_ms
+
+
 # ── Action-item extraction ─────────────────────────────────────────────────────
 
 def _extract_action_items(text: str) -> list[str]:
@@ -214,11 +265,15 @@ def _render_structured_schema(struct: dict[str, Any], source: str) -> None:
     """Display ``{topics, action_items, decision}`` plus provenance caption."""
     st.markdown("**Structured output (Task 5 schema)**")
     st.caption(
-        "Native JSON from the model"
+        "Strict JSON parse of model output"
         if source == "native_json"
         else (
-            "Schema derived deterministically from the summary text "
-            "(same path as ``task5_lora_structured`` reliable pipeline; not gold labels)."
+            "Structured fields recovered from model JSON-shaped text (syntax repair; model-only)"
+            if source == "salvaged_json"
+            else (
+                "Schema derived deterministically from the summary text "
+                "(same path as ``task5_lora_structured`` reliable pipeline; not gold labels)."
+            )
         )
     )
     topics = struct.get("topics") or []
@@ -341,13 +396,23 @@ def main() -> None:
                 st.stop()
 
             use_prefix = _model_needs_summarize_prefix(model_path)
+            t5_pack = _task5_packaging_config(model_path)
+            json_supervised = bool(t5_pack and t5_pack.get("structured_supervised"))
+
             with st.spinner("Generating summary…"):
-                summary, latency_ms = _generate(
-                    dialogue, tokenizer, model, device, cfg,
-                    num_beams      = num_beams,
-                    length_penalty = float(length_penalty),
-                    use_task_prefix = use_prefix,
-                )
+                if json_supervised and use_prefix:
+                    summary, latency_ms = _generate_json_supervised_t5(
+                        dialogue, tokenizer, model, device, cfg,
+                        num_beams      = num_beams,
+                        length_penalty = float(length_penalty),
+                    )
+                else:
+                    summary, latency_ms = _generate(
+                        dialogue, tokenizer, model, device, cfg,
+                        num_beams      = num_beams,
+                        length_penalty = float(length_penalty),
+                        use_task_prefix = use_prefix,
+                    )
 
             # ── Summary ──────────────────────────────────────────────────
             st.markdown("**Summary**")
@@ -388,6 +453,7 @@ def main() -> None:
                 "length_penalty": float(length_penalty),
                 "latency_ms"    : round(latency_ms, 1),
                 "t5_summarize_prefix": use_prefix,
+                "task5_json_supervised": json_supervised,
                 "structured_output_source": struct_src,
             })
 
