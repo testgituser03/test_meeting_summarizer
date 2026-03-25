@@ -1,35 +1,52 @@
 {
   "n_samples": 256,
+  "metric_notes": {
+    "model_size_mb": "Size of merged/*.safetensors for inference (base weights with LoRA fused).",
+    "adapter_weights_mb": "PEFT adapter checkpoint only (adapter_model*.safetensors); excludes frozen base.",
+    "adapter_trainable_params": "Total elements in adapter safetensors (LoRA A/B); rank scales this count.",
+    "adapter_stats_source": "If set, adapter files were read from another folder (e.g. task1 for rank-16 alias)."
+  },
   "results": [
     {
       "rank": 2,
       "rougeL": 31.3957,
-      "latency_ms": 99.06,
-      "model_size_mb": 230.83
+      "latency_ms": 106.1,
+      "model_size_mb": 230.83,
+      "adapter_weights_mb": 0.2906,
+      "adapter_trainable_params": 73728
     },
     {
       "rank": 4,
       "rougeL": 31.2146,
-      "latency_ms": 91.53,
-      "model_size_mb": 230.83
+      "latency_ms": 98.02,
+      "model_size_mb": 230.83,
+      "adapter_weights_mb": 0.5719,
+      "adapter_trainable_params": 147456
     },
     {
       "rank": 8,
       "rougeL": 31.7165,
-      "latency_ms": 98.77,
-      "model_size_mb": 230.83
+      "latency_ms": 95.88,
+      "model_size_mb": 230.83,
+      "adapter_weights_mb": 1.1344,
+      "adapter_trainable_params": 294912
     },
     {
       "rank": 16,
       "rougeL": 34.1604,
-      "latency_ms": 115.49,
-      "model_size_mb": 230.83
+      "latency_ms": 114.67,
+      "model_size_mb": 230.83,
+      "adapter_weights_mb": 2.2596,
+      "adapter_trainable_params": 589824,
+      "adapter_stats_source": "models/best/t5-small_lora_task1"
     },
     {
       "rank": 32,
       "rougeL": 34.5376,
-      "latency_ms": 108.89,
-      "model_size_mb": 230.83
+      "latency_ms": 110.91,
+      "model_size_mb": 230.83,
+      "adapter_weights_mb": 4.5096,
+      "adapter_trainable_params": 1179648
     }
   ]
 }

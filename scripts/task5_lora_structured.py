@@ -4,10 +4,17 @@ Task 5 — LoRA Rank Ablation & Structured Output Constraints.
 
 Subcommands:
   train       — Train T5-small LoRA with ranks 2, 4, 8, 16, 32
-  eval        — Measure ROUGE-L, latency, model size per rank
-  structured  — JSON schema decoding; measure validity + ROUGE-L (inner JSON targets for T5)
-  sweet_spot  — Identify min rank with 95%+ validity and ROUGE-L within 1 pt
+  eval        — Measure ROUGE-L, latency, merged size + PEFT adapter size / trainable count
+  structured  — Schema JSON metrics + ROUGE (see --structured-pipeline)
+  sweet_spot  — Rank selection vs native-JSON gate + ROUGE window
   package     — Package optimal config as production baseline
+
+Structured pipelines (``structured``):
+  reliable (default) — one summarization forward pass on ``merged/``, then either
+    strict JSON parse of the model string or deterministic prose→schema projection
+    (always yields valid JSON for APIs / ``json.dumps``).
+  legacy_json_prompt — previous behavior: ``Output JSON only`` prompt and optional
+    ``merged_structured/`` weights (often emits plain prose; native JSON rate ≈ 0).
 
 Usage:
   python3 scripts/task5_lora_structured.py train --ranks 2 4 8 16 32
@@ -103,6 +110,11 @@ def structured_input_text(dialogue: str) -> str:
     return f"{TASK_PREFIX}{STRUCTURED_PREFIX}{dialogue}"
 
 
+def summarization_input_text(dialogue: str) -> str:
+    """Same encoder prompt as ``cmd_eval`` free-form summarization."""
+    return f"{TASK_PREFIX}{dialogue}"
+
+
 def resolve_rank_model_dir(rank: int) -> Path:
     """Directory containing adapter or merged weights for this LoRA rank."""
     d = PROJECT_ROOT / "models" / "best" / f"t5-small_lora_r{rank}"
@@ -127,6 +139,69 @@ def resolve_inference_merged_dir(rank: int) -> Path | None:
     return base if any(base.glob("*.safetensors")) else None
 
 
+def resolve_summarization_merged_dir(rank: int) -> Path | None:
+    """``merged/`` only (rank ablation summarization checkpoint), for reliable structured pipeline."""
+    base = resolve_rank_model_dir(rank)
+    if not base.exists():
+        return None
+    m = base / "merged"
+    if m.exists() and any(m.glob("*.safetensors")):
+        return m
+    return base if any(base.glob("*.safetensors")) else None
+
+
+def _adapter_weight_file_paths(adapter_root: Path) -> list[Path]:
+    """Return PEFT adapter checkpoint files (safetensors or legacy bin + sharded safetensors)."""
+    paths: list[Path] = []
+    for name in ("adapter_model.safetensors", "adapter_model.bin"):
+        p = adapter_root / name
+        if p.exists():
+            paths.append(p)
+    paths.extend(sorted(adapter_root.glob("adapter_model-*.safetensors")))
+    return paths
+
+
+def adapter_weight_stats(adapter_root: Path) -> tuple[float, int | None]:
+    """
+    On-disk adapter size (MiB) and total tensor element count in adapter safetensors.
+
+    The element count matches reported trainable LoRA parameters for standard PEFT checkpoints.
+    """
+    paths = _adapter_weight_file_paths(adapter_root)
+    if not paths:
+        return 0.0, None
+    mib = sum(p.stat().st_size for p in paths) / (1024 * 1024)
+    n_params: int | None = None
+    try:
+        from safetensors import safe_open
+
+        n_params = 0
+        for p in paths:
+            if p.suffix != ".safetensors":
+                continue
+            with safe_open(str(p), framework="pt") as f:
+                for key in f.keys():
+                    n_params += int(f.get_tensor(key).numel())
+    except Exception:
+        n_params = None
+    return round(mib, 4), n_params
+
+
+def _resolve_adapter_dir_for_metrics(model_dir: Path, rank: int) -> tuple[Path, str | None]:
+    """
+    PEFT adapter lives next to ``merged/`` under ``models/best/t5-small_lora_r{rank}/``.
+
+    Rank 16 may be a merged-only copy of task1; in that case use task1's adapter files for stats.
+    """
+    if _adapter_weight_file_paths(model_dir):
+        return model_dir, None
+    if rank == 16:
+        t1 = PROJECT_ROOT / "models" / "best" / "t5-small_lora_task1"
+        if _adapter_weight_file_paths(t1):
+            return t1, str(t1.relative_to(PROJECT_ROOT))
+    return model_dir, None
+
+
 def _rouge_l(preds: list[str], refs: list[str]) -> float:
     from rouge_score import rouge_scorer
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
@@ -134,9 +209,24 @@ def _rouge_l(preds: list[str], refs: list[str]) -> float:
     return sum(vals) / max(len(vals), 1) * 100
 
 
+def _normalize_json_candidate(text: str) -> str:
+    """Normalize Unicode quotes / trivial noise so ``json.loads`` can succeed more often."""
+    repl = {
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u00a0": " ",
+    }
+    for a, b in repl.items():
+        text = text.replace(a, b)
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    return text
+
+
 def _parse_json_summary(text: str) -> dict | None:
     """Try to parse JSON from model output. Handle fences, prefixes, truncation."""
-    text = text.strip()
+    text = _normalize_json_candidate(text.strip())
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I | re.MULTILINE)
         text = re.sub(r"\s*```\s*$", "", text)
@@ -191,24 +281,46 @@ def _parse_json_summary(text: str) -> dict | None:
             return json.loads(attempt)
         except json.JSONDecodeError:
             pass
+    # Single-quoted keys (common T5 drift): "topics" -> optional 'topics'
+    sq = re.sub(r"'(topics|action_items|decision)'\s*:", r'"\1":', text, flags=re.I)
+    if sq != text:
+        for attempt in (sq, sq + "}"):
+            try:
+                return json.loads(attempt)
+            except json.JSONDecodeError:
+                pass
     return None
+
+
+def structured_dict_from_model_output(pred: str) -> tuple[dict[str, Any], str]:
+    """
+    Return (schema_dict, source).
+
+    source is:
+      - ``native_json`` — ``pred`` (after T5 repair) parsed with ``json.loads`` and passes
+        ``_is_valid_structured``;
+      - ``prose_projection`` — deterministic ``gold_summary_to_structured_obj(pred)`` (no
+        reference labels; same helper used for supervised JSON targets).
+    """
+    pred = (pred or "").strip()
+    if not pred:
+        return {}, "prose_projection"
+    repaired = repair_t5_json_decode(pred)
+    parsed = _parse_json_summary(repaired)
+    if _is_valid_structured(parsed):
+        assert parsed is not None
+        return parsed, "native_json"
+    return gold_summary_to_structured_obj(pred), "prose_projection"
 
 
 def prediction_to_structured_dict_with_trace(pred: str) -> tuple[dict[str, Any], bool]:
     """Return (structured_dict, used_heuristic_fallback).
 
-    If ``used_heuristic_fallback`` is True, the schema was derived from plain-text
-    heuristics, not a successful model JSON parse — do **not** treat as JSON fidelity.
+    If ``used_heuristic_fallback`` is True, output used prose→schema projection rather than
+    a strict JSON parse of the model string.
     """
-    pred = (pred or "").strip()
-    if not pred:
-        return {}, True
-    repaired = repair_t5_json_decode(pred)
-    parsed = _parse_json_summary(repaired)
-    if _is_valid_structured(parsed):
-        assert parsed is not None
-        return parsed, False
-    return gold_summary_to_structured_obj(pred), True
+    d, src = structured_dict_from_model_output(pred)
+    return d, src != "native_json"
 
 
 def prediction_to_structured_dict(pred: str) -> dict[str, Any]:
@@ -624,37 +736,62 @@ def cmd_eval(args) -> None:
         rouge = _rouge_l([p.strip() for p in preds], refs)
         size_mb = sum(f.stat().st_size for f in merged_dir.glob("*.safetensors")) / (1024 * 1024)
 
-        results.append({
+        adapter_dir, adapter_source = _resolve_adapter_dir_for_metrics(model_dir, rank)
+        aw_mib, aw_n = adapter_weight_stats(adapter_dir)
+        row: dict[str, Any] = {
             "rank": rank,
             "rougeL": round(rouge, 4),
             "latency_ms": round(elapsed / n_samples * 1000, 2),
             "model_size_mb": round(size_mb, 2),
-        })
-        print(f"Rank {rank}: ROUGE-L={rouge:.2f}, latency={elapsed/n_samples*1000:.1f}ms, size={size_mb:.1f}MB")
+            "adapter_weights_mb": aw_mib,
+            "adapter_trainable_params": aw_n,
+        }
+        if adapter_source:
+            row["adapter_stats_source"] = adapter_source
+        results.append(row)
+        ap_hint = f", adapter≈{aw_mib}MiB" if aw_mib else ""
+        print(
+            f"Rank {rank}: ROUGE-L={rouge:.2f}, latency={elapsed/n_samples*1000:.1f}ms, "
+            f"merged={size_mb:.1f}MB{ap_hint}"
+        )
 
     out_path = PROJECT_ROOT / "results" / "metrics" / "task5_rank_ablation.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "n_samples": n_samples,
+        "metric_notes": {
+            "model_size_mb": "Size of merged/*.safetensors for inference (base weights with LoRA fused).",
+            "adapter_weights_mb": "PEFT adapter checkpoint only (adapter_model*.safetensors); excludes frozen base.",
+            "adapter_trainable_params": "Total elements in adapter safetensors (LoRA A/B); rank scales this count.",
+            "adapter_stats_source": "If set, adapter files were read from another folder (e.g. task1 for rank-16 alias).",
+        },
+        "results": results,
+    }
     with open(out_path, "w") as f:
-        json.dump({"n_samples": n_samples, "results": results}, f, indent=2)
+        json.dump(payload, f, indent=2)
     print(f"Saved {out_path}")
 
 
 def cmd_structured(args) -> None:
-    """Structured output: supervised JSON head (merged_structured) if present, else merged."""
     from datasets import load_dataset
     import torch
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, LogitsProcessorList
 
     ds = load_dataset("knkarthick/samsum")["test"]
     n_samples = min(args.n_samples, len(ds))
+    pipeline = args.structured_pipeline
 
     results = []
     for rank in args.ranks:
-        merged_dir = resolve_inference_merged_dir(rank)
+        if pipeline == "reliable":
+            merged_dir = resolve_summarization_merged_dir(rank)
+            used_structured = False
+        else:
+            merged_dir = resolve_inference_merged_dir(rank)
+            used_structured = merged_dir is not None and merged_dir.name == "merged_structured"
         if merged_dir is None:
             print(f"Skipping rank {rank}: no merged weights found")
             continue
-        used_structured = merged_dir.name == "merged_structured"
 
         tokenizer = AutoTokenizer.from_pretrained(str(merged_dir))
         model = AutoModelForSeq2SeqLM.from_pretrained(str(merged_dir))
@@ -665,21 +802,26 @@ def cmd_structured(args) -> None:
         prefix_ids = json_prefix_token_ids(tokenizer) if args.force_json_prefix else []
         logits_processors = LogitsProcessorList([ForceJsonPrefixLogitsProcessor(prefix_ids)])
 
-        parse_ok_count = 0
+        native_count = 0
         envelope_count = 0
-        fallback_count = 0
+        projection_count = 0
+        roundtrip_ok = 0
         preds_raw = []
         preds_struct_dicts: list[dict[str, Any]] = []
         refs = []
 
         gen_max = min(args.max_new_tokens_structured, 384)
-
         dec_pref = structured_decoder_input_ids(tokenizer, device) if args.decoder_json_prefill else None
 
         for i in range(n_samples):
             row = ds[i]
+            enc_text = (
+                summarization_input_text(row["dialogue"])
+                if pipeline == "reliable"
+                else structured_input_text(row["dialogue"])
+            )
             inputs = tokenizer(
-                structured_input_text(row["dialogue"]),
+                enc_text,
                 return_tensors="pt",
                 truncation=True,
                 max_length=MAX_SOURCE_LEN,
@@ -693,29 +835,43 @@ def cmd_structured(args) -> None:
                     "repetition_penalty": args.repetition_penalty,
                     "no_repeat_ngram_size": args.no_repeat_ngram_size,
                 }
-                if prefix_ids:
+                if prefix_ids and pipeline != "reliable":
                     gen_kw["logits_processor"] = logits_processors
-                if dec_pref is not None:
+                if dec_pref is not None and pipeline != "reliable":
                     gen_kw["decoder_input_ids"] = dec_pref.clone()
                 out = model.generate(**gen_kw)
+            if device.type == "mps":
+                torch.mps.synchronize()
             pred = tokenizer.decode(out[0], skip_special_tokens=True).strip()
-            pred = repair_t5_json_decode(pred)
-            preds_raw.append(pred)
             refs.append(row["summary"])
-
-            bundle, used_fb = prediction_to_structured_dict_with_trace(pred)
-            preds_struct_dicts.append(bundle)
-            if not used_fb:
-                parse_ok_count += 1
+            if pipeline == "reliable":
+                preds_raw.append(pred)
+                bundle, src = structured_dict_from_model_output(pred)
             else:
-                fallback_count += 1
+                pred_rep = repair_t5_json_decode(pred)
+                preds_raw.append(pred_rep)
+                bundle, src = structured_dict_from_model_output(pred_rep)
+            preds_struct_dicts.append(bundle)
+            if src == "native_json":
+                native_count += 1
+            else:
+                projection_count += 1
             if _is_valid_structured(bundle):
                 envelope_count += 1
+            try:
+                json.loads(json.dumps(bundle, ensure_ascii=False))
+                roundtrip_ok += 1
+            except (TypeError, ValueError):
+                pass
 
-        validity_rate = parse_ok_count / n_samples
-        parse_success_rate = parse_ok_count / n_samples
-        heuristic_fallback_rate = fallback_count / n_samples
+        generative_native_json_rate = native_count / n_samples
+        prose_projection_rate = projection_count / n_samples
+        guaranteed_json_roundtrip_rate = roundtrip_ok / n_samples
+        parse_success_rate = generative_native_json_rate
+        heuristic_fallback_rate = prose_projection_rate
+        validity_rate = parse_success_rate
         api_envelope_valid_rate = envelope_count / n_samples
+
         rouge = _rouge_l(preds_raw, refs)
         pred_json_lines = [
             json.dumps(d, sort_keys=True, ensure_ascii=False) for d in preds_struct_dicts
@@ -727,6 +883,11 @@ def cmd_structured(args) -> None:
 
         results.append({
             "rank": rank,
+            "structured_pipeline": pipeline,
+            "generative_native_json_rate": round(generative_native_json_rate, 4),
+            "prose_projection_rate": round(prose_projection_rate, 4),
+            "guaranteed_json_roundtrip_rate": round(guaranteed_json_roundtrip_rate, 4),
+            "reliable_structured_delivery_rate": round(api_envelope_valid_rate, 4),
             "json_validity_rate": round(validity_rate, 4),
             "parse_success_rate": round(parse_success_rate, 4),
             "heuristic_fallback_rate": round(heuristic_fallback_rate, 4),
@@ -736,13 +897,13 @@ def cmd_structured(args) -> None:
             "rougeL_structured_json_vs_gold": round(rouge_json, 4),
             "used_merged_structured": used_structured,
             "force_json_prefix": bool(prefix_ids) and args.force_json_prefix,
-            "decoder_json_prefill": dec_pref is not None,
+            "decoder_json_prefill": dec_pref is not None and pipeline != "reliable",
             "json_target_format_expected": "inner_no_braces" if used_structured else "full_json_or_plain",
         })
         print(
-            f"Rank {rank}: strict={validity_rate:.1%}, parse_success={parse_success_rate:.1%}, "
-            f"fallback={heuristic_fallback_rate:.1%}, ROUGE(raw)={rouge:.2f}, ROUGE(json)={rouge_json:.2f}, "
-            f"merged_structured={used_structured}"
+            f"Rank {rank}: native_json={generative_native_json_rate:.1%}, "
+            f"projection={prose_projection_rate:.1%}, json_roundtrip={guaranteed_json_roundtrip_rate:.1%}, "
+            f"ROUGE(raw)={rouge:.2f}, ROUGE(json)={rouge_json:.2f}, pipeline={pipeline}"
         )
 
     out_path = PROJECT_ROOT / "results" / "metrics" / "task5_structured_output.json"
@@ -751,15 +912,28 @@ def cmd_structured(args) -> None:
         json.dump(
             {
                 "n_samples": n_samples,
+                "structured_pipeline": pipeline,
                 "schema": STRUCTURED_SCHEMA,
                 "metric_notes": {
-                    "json_validity_rate": "Same as parse_success_rate (single source: prediction_to_structured_dict_with_trace).",
-                    "parse_success_rate": "Model output parsed to schema without plain-text heuristic (1 - heuristic_fallback_rate).",
-                    "heuristic_fallback_rate": "Fraction where gold_summary_to_structured_obj(pred) was used.",
-                    "api_envelope_valid_rate": "Valid schema after prediction_to_structured_dict (often high; not model-JSON accuracy).",
-                    "structured_contract_rate": "Alias of parse_success_rate (model-parse success; not API-envelope-only).",
-                    "rougeL_structured": "ROUGE-L of raw model string vs plain gold summary (weak signal for JSON task).",
-                    "rougeL_structured_json_vs_gold": "ROUGE-L of serialized pred dict vs serialized heuristic gold structured dict.",
+                    "structured_pipeline_reliable": (
+                        "Summarize with TASK_PREFIX + dialogue on merged/ weights, then native JSON parse "
+                        "or deterministic prose→schema projection (no gold labels). Guarantees API JSON "
+                        "via json.dumps(final_dict)."
+                    ),
+                    "generative_native_json_rate": (
+                        "Share of samples where the model string parsed as JSON and matched the schema."
+                    ),
+                    "prose_projection_rate": (
+                        "Share using gold_summary_to_structured_obj(model prose); deterministic, not label leakage."
+                    ),
+                    "guaranteed_json_roundtrip_rate": "Fraction where json.loads(json.dumps(structured_dict)) succeeded.",
+                    "parse_success_rate": "Alias of generative_native_json_rate (backward-compatible field name).",
+                    "heuristic_fallback_rate": "Alias of prose_projection_rate (backward-compatible field name).",
+                    "json_validity_rate": "Same as parse_success_rate (legacy alias).",
+                    "api_envelope_valid_rate": "Valid schema dict after structured_dict_from_model_output.",
+                    "structured_contract_rate": "Native JSON only (same as parse_success_rate).",
+                    "rougeL_structured": "ROUGE-L of primary model string vs plain gold summary.",
+                    "rougeL_structured_json_vs_gold": "ROUGE-L of serialized structured dict vs heuristic gold structured dict.",
                 },
                 "results": results,
             },
@@ -767,6 +941,13 @@ def cmd_structured(args) -> None:
             indent=2,
         )
     print(f"Saved {out_path}")
+
+
+def _native_json_gate_metric(row: dict[str, Any]) -> float:
+    """Prefer explicit generative rate from new metrics; fall back to legacy fields."""
+    if "generative_native_json_rate" in row:
+        return float(row["generative_native_json_rate"])
+    return float(row.get("parse_success_rate", row.get("json_validity_rate", 0.0)))
 
 
 def cmd_sweet_spot(args) -> None:
@@ -792,83 +973,100 @@ def cmd_sweet_spot(args) -> None:
             continue
         r_ab = by_rank[rank]
         r_str = struct_by_rank[rank]
-        ps = r_str.get("parse_success_rate", r_str.get("json_validity_rate", 0.0))
-        valid = ps >= args.min_parse_success
+        native_r = _native_json_gate_metric(r_str)
         rouge_close = (baseline_rouge - r_ab["rougeL"]) <= 1.0
-        if valid and rouge_close:
+        if native_r >= args.min_parse_success and rouge_close:
             candidates.append({
                 "rank": rank,
                 "rougeL": r_ab["rougeL"],
-                "parse_success_rate": ps,
+                "generative_native_json_rate": native_r,
+                "parse_success_rate": r_str.get("parse_success_rate"),
+                "guaranteed_json_roundtrip_rate": r_str.get("guaranteed_json_roundtrip_rate"),
                 "latency_ms": r_ab["latency_ms"],
                 "size_mb": r_ab["model_size_mb"],
             })
 
     sweet_spot = min(candidates, key=lambda x: x["rank"]) if candidates else None
     selection_note = None
-    if sweet_spot is None and args.fallback_rouge_only:
-        relaxed = []
-        for rank in sorted(by_rank.keys()):
-            if rank not in struct_by_rank:
-                continue
-            r_ab = by_rank[rank]
+    rouge_window_pick = None
+    relaxed = []
+    for rank in sorted(by_rank.keys()):
+        if rank not in struct_by_rank:
+            continue
+        r_ab = by_rank[rank]
+        rouge_close = (baseline_rouge - r_ab["rougeL"]) <= 1.0
+        if rouge_close:
             r_str = struct_by_rank[rank]
-            ps = r_str.get("parse_success_rate", r_str.get("json_validity_rate", 0.0))
-            rouge_close = (baseline_rouge - r_ab["rougeL"]) <= 1.0
-            if rouge_close:
-                relaxed.append({
-                    "rank": rank,
-                    "rougeL": r_ab["rougeL"],
-                    "parse_success_rate": ps,
-                    "latency_ms": r_ab["latency_ms"],
-                    "size_mb": r_ab["model_size_mb"],
-                })
-        if relaxed:
-            sweet_spot = min(relaxed, key=lambda x: x["rank"])
+            relaxed.append({
+                "rank": rank,
+                "rougeL": r_ab["rougeL"],
+                "generative_native_json_rate": _native_json_gate_metric(r_str),
+                "latency_ms": r_ab["latency_ms"],
+                "size_mb": r_ab["model_size_mb"],
+            })
+    if relaxed:
+        rouge_window_pick = min(relaxed, key=lambda x: x["rank"])
+
+    if sweet_spot is None and rouge_window_pick is not None:
+        if args.fallback_rouge_only:
             selection_note = (
-                "No rank met min_parse_success; used ROUGE-window-only fallback "
-                "(lowest rank within 1 ROUGE-L pt of baseline)."
+                "No rank met generative_native_json_rate >= min_parse_success; "
+                "--fallback-rouge-only copied operational_pick from ROUGE window only "
+                "(does not satisfy native JSON gate)."
+            )
+        else:
+            selection_note = (
+                "No rank met generative_native_json_rate >= min_parse_success; "
+                "sweet_spot left null. See operational_pick_rouge_window_only for a ROUGE-only choice."
             )
 
-    # Structured vs free-form comparison
     comparison = []
     for rank in sorted(set(by_rank.keys()) & set(struct_by_rank.keys())):
         ff = by_rank[rank]["rougeL"]
         st = struct_by_rank[rank]["rougeL_structured"]
         sr = struct_by_rank[rank]
-        ps = sr.get("parse_success_rate", sr.get("json_validity_rate", 0.0))
+        native_r = _native_json_gate_metric(sr)
         comparison.append({
             "rank": rank,
             "free_form_rougeL": ff,
             "structured_rougeL": st,
-            "parse_success_rate": ps,
+            "generative_native_json_rate": sr.get("generative_native_json_rate", native_r),
+            "parse_success_rate": sr.get("parse_success_rate"),
+            "guaranteed_json_roundtrip_rate": sr.get("guaranteed_json_roundtrip_rate"),
             "json_validity_rate": sr.get("json_validity_rate"),
             "structured_vs_freeform_delta": round(st - ff, 4),
         })
 
     report = {
         "task": "task5_sweet_spot",
+        "structured_pipeline": structured.get("structured_pipeline"),
         "baseline_rank": full_rank,
         "baseline_rougeL": baseline_rouge,
         "min_parse_success": args.min_parse_success,
         "fallback_rouge_only": args.fallback_rouge_only,
         "selection_note": selection_note,
         "sweet_spot": sweet_spot,
+        "operational_pick_rouge_window_only": rouge_window_pick if sweet_spot is None else None,
+        "operational_pick": (
+            rouge_window_pick if sweet_spot is None and args.fallback_rouge_only else sweet_spot
+        ),
+        "candidates_native_json_gate_within_1pt_rouge": candidates,
         "candidates_parse_success_within_1pt_rouge": candidates,
         "structured_vs_freeform_comparison": comparison,
         "note": (
-            "Structured eval uses TASK_PREFIX + instruction; if train_structured was run, "
-            "loads merged_structured (supervised JSON targets). Free-form uses standard summarization. "
-            "Primary: parse_success_rate >= min_parse_success and ROUGE within 1 pt of baseline. "
-            "If none qualify and --fallback-rouge-only (default on), pick lowest rank within the ROUGE window. "
-            "If sweet_spot is still null, `package` uses --default_rank."
+            "sweet_spot requires generative_native_json_rate (strict model JSON) >= min_parse_success "
+            "and ROUGE within 1 pt of the max-rank baseline. Use guaranteed_json_roundtrip_rate from "
+            "task5_structured_output.json for API-safe JSON (reliable pipeline). "
+            "If sweet_spot is null and --no-fallback-rouge-only (default), operational_pick omits "
+            "ROUGE-only fallback unless explicitly enabled."
         ),
     }
 
     out_path = PROJECT_ROOT / "results" / "metrics" / "task5_sweet_spot.json"
     with open(out_path, "w") as f:
         json.dump(report, f, indent=2)
-    print(f"Sweet spot: {sweet_spot}")
+    print(f"Sweet spot (native JSON gate): {sweet_spot}")
+    print(f"Operational pick: {report['operational_pick']}")
     print(f"Saved {out_path}")
 
 
@@ -881,11 +1079,22 @@ def cmd_package(args) -> None:
         data = json.load(f)
 
     sweet = data.get("sweet_spot")
-    rank = (sweet.get("rank") if isinstance(sweet, dict) else None) or args.default_rank
-    if sweet is None:
+    op_pick = data.get("operational_pick")
+    rank = None
+    if isinstance(sweet, dict):
+        rank = sweet.get("rank")
+    elif isinstance(op_pick, dict):
+        rank = op_pick.get("rank")
+    if rank is None:
+        rank = args.default_rank
         print(
-            f"Note: sweet_spot is null (no rank met min_parse_success / ROUGE window). "
-            f"Packaging --default_rank={args.default_rank}."
+            "Note: sweet_spot is null and operational_pick unset; "
+            f"using --default_rank={args.default_rank}."
+        )
+    elif sweet is None and isinstance(op_pick, dict):
+        print(
+            "Note: packaging operational_pick (ROUGE fallback / partial gate). "
+            "Native JSON sweet_spot was not satisfied — see task5_sweet_spot.json."
         )
     prod_dir = PROJECT_ROOT / "models" / "production_task5"
     src_dir = resolve_rank_model_dir(rank)
@@ -939,6 +1148,15 @@ def main() -> None:
     p_struct = sub.add_parser("structured")
     p_struct.add_argument("--ranks", nargs="+", type=int, default=LORA_RANKS)
     p_struct.add_argument("--n_samples", type=int, default=256)
+    p_struct.add_argument(
+        "--structured-pipeline",
+        choices=["reliable", "legacy_json_prompt"],
+        default="reliable",
+        help=(
+            "reliable: summarize on merged/ then JSON parse or prose projection (default). "
+            "legacy_json_prompt: prior JSON-only encoder prompt + merged_structured if present."
+        ),
+    )
     p_struct.add_argument("--max_new_tokens_structured", type=int, default=320)
     p_struct.add_argument("--num_beams", type=int, default=4)
     p_struct.add_argument("--repetition_penalty", type=float, default=1.12)
@@ -994,9 +1212,12 @@ def main() -> None:
     p_sweet.add_argument(
         "--fallback-rouge-only",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         dest="fallback_rouge_only",
-        help="If no rank meets min_parse_success, still pick lowest rank within ROUGE window (default: on).",
+        help=(
+            "If no rank meets the native JSON gate, still set operational_pick to the lowest rank "
+            "within the ROUGE window (default: off — sweet_spot may be null)."
+        ),
     )
 
     p_pkg = sub.add_parser("package")

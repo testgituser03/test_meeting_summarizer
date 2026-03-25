@@ -93,17 +93,17 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 | `task4_robustness_eval.json` | ROUGE-L on 150 original + 150 adversarial; failure modes; action completeness |
 | `task4_coherence_template.csv` | **Template only** — empty human rating scaffold (1–5 coherence); not filled automatically |
 | `task4_robustness_comparison.json` | Pre/post ROUGE-L on held-out adversarial; `model_*_resolved` = checkpoint path used (usually `merged/`) |
-| `task4_retrain_manifest.json` | Retrain hyperparameters (70/30 mix, LR, epochs, early stop, best held-out ROUGE-L) when `retrain` was run |
+| `task4_retrain_manifest.json` | Retrain hyperparameters (mix, LR, epochs, pattern-macro early-stop metric, best checkpoint) when `retrain` was run |
 
 ### Task 5 Outputs — LoRA Rank & Structured Output
 
 | File | Description |
 |------|-------------|
-| `task5_rank_ablation.json` | ROUGE-L, latency, model size per LoRA rank (2,4,8,16,32) |
-| `task5_structured_output.json` | Per rank: `parse_success_rate`, `heuristic_fallback_rate`, `api_envelope_valid_rate`, `rougeL_structured_json_vs_gold`, etc.; see `metric_notes` in JSON |
+| `task5_rank_ablation.json` | Per rank: ROUGE-L, latency, **`model_size_mb`** (merged), **`adapter_weights_mb`**, **`adapter_trainable_params`**; see `metric_notes` |
+| `task5_structured_output.json` | Per rank: `generative_native_json_rate`, `guaranteed_json_roundtrip_rate`, legacy aliases, `rougeL_structured`, etc.; see `metric_notes` |
 | `task5_structured_train_r*.json` | Per-rank manifest from `train_structured` (samples, LoRA config, `json_target_format`) |
 | `task5_structured_training_summary.json` | Aggregate summary of structured training run |
-| `task5_sweet_spot.json` | Sweet spot: `parse_success_rate ≥ min_parse_success` (default 0.2) + ROUGE window; `package` uses `--default_rank` when null |
+| `task5_sweet_spot.json` | Native-JSON gate + ROUGE window; optional `--fallback-rouge-only`; `package` falls back to `--default_rank` |
 
 Related non-metrics artifacts written outside this folder:
 

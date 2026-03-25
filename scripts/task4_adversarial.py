@@ -5,8 +5,8 @@ Task 4 — Adversarial Meeting Transcripts & Robustness Testing.
 Subcommands:
   generate  — Create adversarial transcripts (overlap, noise, tangents, long)
   eval      — Summarize 150 original + 150 adversarial; measure robustness
-  retrain   — Retrain T5-small LoRA: 70/30 orig/adv mix, low LR, held-out ROUGE eval,
-              early stopping (max 3 epochs)
+  retrain   — Retrain T5-small LoRA: orig/adv mix (default 55/45), low LR, held-out ROUGE
+              (macro mean over pattern buckets), early stopping
   compare   — Pre/post ROUGE-L on held-out adversarial test; quantify gain
 
 Usage:
@@ -26,6 +26,7 @@ import json
 import random
 import re
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -306,6 +307,20 @@ def _rouge_l(preds: list[str], refs: list[str]) -> float:
     return sum(vals) / max(len(vals), 1) * 100
 
 
+def _rouge_l_by_pattern(
+    samples: list[dict[str, Any]],
+    preds: list[str],
+    refs: list[str],
+) -> dict[str, float]:
+    """Mean ROUGE-L ×100 per adversarial ``pattern`` (and ``original`` if present)."""
+    buckets: dict[str, dict[str, list[str]]] = defaultdict(lambda: {"preds": [], "refs": []})
+    for s, p, r in zip(samples, preds, refs):
+        pat = s.get("pattern", "unknown")
+        buckets[pat]["preds"].append(p)
+        buckets[pat]["refs"].append(r)
+    return {k: round(_rouge_l(v["preds"], v["refs"]), 4) for k, v in sorted(buckets.items())}
+
+
 def _action_completeness_proxy(summaries: list[str]) -> float:
     """Fraction of summaries containing action-like phrases."""
     action_pattern = re.compile(
@@ -486,6 +501,7 @@ def cmd_retrain(args) -> None:
     with open(adv_data_path) as f:
         adv_meta = json.load(f)
     held = adv_meta["held_out_adversarial"]
+    held_patterns = [s.get("pattern", "unknown") for s in held]
     eval_ds = Dataset.from_dict({
         "dialogue": [s["dialogue"] for s in held],
         "summary": [s["summary"] for s in held],
@@ -527,8 +543,19 @@ def cmd_retrain(args) -> None:
             rouge_sc.score(ref.lower(), pred.lower())["rougeL"].fmeasure
             for pred, ref in zip(decoded_preds, decoded_labels)
         ]
-        rouge_l = (sum(scores) / max(len(scores), 1)) * 100.0
-        return {"eval_rougeL": rouge_l}
+        rouge_micro = (sum(scores) / max(len(scores), 1)) * 100.0
+        pat_scores: dict[str, list[float]] = defaultdict(list)
+        for pred, ref, pat in zip(decoded_preds, decoded_labels, held_patterns):
+            r = rouge_sc.score(ref.lower(), pred.lower())["rougeL"].fmeasure
+            pat_scores[pat].append(r)
+        pat_means = {p: sum(v) / len(v) for p, v in pat_scores.items()}
+        rouge_macro = (sum(pat_means.values()) / max(len(pat_means), 1)) * 100.0
+        rouge_worst = min(pat_means.values()) * 100.0 if pat_means else 0.0
+        return {
+            "eval_rougeL": rouge_macro,
+            "eval_rougeL_micro": rouge_micro,
+            "eval_rougeL_worst_pattern": rouge_worst,
+        }
 
     collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model, pad_to_multiple_of=8, return_tensors="pt")
     total_steps = (len(tokenized_train) + args.batch_size - 1) // args.batch_size * args.num_epochs
@@ -598,6 +625,10 @@ def cmd_retrain(args) -> None:
         "warmup_steps": warmup_steps,
         "best_model_checkpoint": best_ckpt,
         "best_eval_rougeL": best_metric,
+        "eval_metric_note": (
+            "metric_for_best_model=eval_rougeL is macro mean of per-pattern mean ROUGE-L "
+            "on held-out (stratified); see eval_rougeL_micro for micro-average."
+        ),
         "train_runtime_s": getattr(train_result, "metrics", {}).get("train_runtime"),
         "base_model": str(base_path),
     }
@@ -607,7 +638,7 @@ def cmd_retrain(args) -> None:
         json.dump(manifest, f, indent=2)
 
     print(f"Saved retrained model to {out_dir}")
-    print(f"Best held-out adversarial eval ROUGE-L (during training): {best_metric}")
+    print(f"Best held-out ROUGE-L (pattern-macro, early-stop metric): {best_metric}")
     print(f"Manifest: {man_path}")
 
 
@@ -638,6 +669,12 @@ def cmd_compare(args) -> None:
     rouge_pre = _rouge_l(preds_pre, refs)
     rouge_post = _rouge_l(preds_post, refs)
     gain = rouge_post - rouge_pre
+    by_pre = _rouge_l_by_pattern(held_out, preds_pre, refs)
+    by_post = _rouge_l_by_pattern(held_out, preds_post, refs)
+    all_pats = sorted(set(by_pre) | set(by_post))
+    gain_by_pattern = {p: round(by_post[p] - by_pre[p], 4) for p in all_pats}
+    macro_pre = round(sum(by_pre.values()) / max(len(by_pre), 1), 4)
+    macro_post = round(sum(by_post.values()) / max(len(by_post), 1), 4)
 
     report = {
         "task": "task4_robustness_comparison",
@@ -649,6 +686,12 @@ def cmd_compare(args) -> None:
         "rougeL_pre": round(rouge_pre, 4),
         "rougeL_post": round(rouge_post, 4),
         "robustness_gain": round(gain, 4),
+        "rougeL_macro_by_pattern_pre": macro_pre,
+        "rougeL_macro_by_pattern_post": macro_post,
+        "robustness_gain_macro_by_pattern": round(macro_post - macro_pre, 4),
+        "rougeL_by_pattern_pre": by_pre,
+        "rougeL_by_pattern_post": by_post,
+        "robustness_gain_by_pattern": gain_by_pattern,
     }
 
     out_path = PROJECT_ROOT / "results" / "metrics" / "task4_robustness_comparison.json"
@@ -656,9 +699,11 @@ def cmd_compare(args) -> None:
     with open(out_path, "w") as f:
         json.dump(report, f, indent=2)
 
-    print(f"Pre-adversarial ROUGE-L: {rouge_pre:.2f}")
-    print(f"Post-adversarial ROUGE-L: {rouge_post:.2f}")
-    print(f"Robustness gain: {gain:+.2f}")
+    print(f"Pre-adversarial ROUGE-L (micro): {rouge_pre:.2f}")
+    print(f"Post-adversarial ROUGE-L (micro): {rouge_post:.2f}")
+    print(f"Robustness gain (micro): {gain:+.2f}")
+    print(f"Macro-by-pattern pre/post: {macro_pre:.2f} → {macro_post:.2f} (Δ {macro_post - macro_pre:+.2f})")
+    print(f"Gain by pattern: {gain_by_pattern}")
     print(f"Saved {out_path}")
 
 
@@ -683,19 +728,21 @@ def main() -> None:
 
     p_retrain = sub.add_parser(
         "retrain",
-        help="Retrain T5-small LoRA: 70/30 mix, low LR, held-out ROUGE, early stop (≤3 epochs)",
+        help=(
+            "Retrain T5-small LoRA: orig/adv mix, low LR, held-out ROUGE (pattern-macro), early stop"
+        ),
     )
     p_retrain.add_argument("--base_model", default="models/best/t5-small_lora_task1")
     p_retrain.add_argument("--batch_size", type=int, default=8)
     p_retrain.add_argument("--seed", type=int, default=42)
-    p_retrain.add_argument("--num_epochs", type=int, default=3)
-    p_retrain.add_argument("--learning_rate", type=float, default=1e-5)
-    p_retrain.add_argument("--max_train_samples", type=int, default=5000)
-    p_retrain.add_argument("--orig_frac", type=float, default=0.7)
+    p_retrain.add_argument("--num_epochs", type=int, default=5)
+    p_retrain.add_argument("--learning_rate", type=float, default=5e-6)
+    p_retrain.add_argument("--max_train_samples", type=int, default=6000)
+    p_retrain.add_argument("--orig_frac", type=float, default=0.55)
     p_retrain.add_argument("--warmup_steps", type=int, default=500)
     p_retrain.add_argument("--warmup_ratio", type=float, default=0.06)
     p_retrain.add_argument("--max_grad_norm", type=float, default=1.0)
-    p_retrain.add_argument("--early_stopping_patience", type=int, default=1)
+    p_retrain.add_argument("--early_stopping_patience", type=int, default=2)
 
     p_compare = sub.add_parser("compare", help="Pre/post ROUGE-L on held-out adversarial")
     p_compare.add_argument("--model_pre", default="models/best/t5-small_lora_task1")

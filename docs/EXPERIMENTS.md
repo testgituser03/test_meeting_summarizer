@@ -361,9 +361,9 @@ Attention heatmaps and speaker aggregates use a **teacher-forced forward** on th
 > **Data**: `data/adversarial_task4/task4_adversarial_data.json`  
 > **Metrics**: `results/metrics/task4_robustness_eval.json`, `task4_robustness_comparison.json`, optional `task4_retrain_manifest.json`
 
-**Retrain loop (fixed):** ~**70% original / 30% adversarial** SAMSum train rows, `learning_rate=1e-5`, cosine schedule + **warmup**, up to **3 epochs**, **held-out adversarial ROUGE-L** each epoch (`predict_with_generate`), **early stopping** when the metric stops improving. Manifest records best checkpoint.
+**Retrain loop (defaults as of P2):** ~**55% original / 45% adversarial** SAMSum train rows, `learning_rate=5e-6`, cosine + **warmup**, up to **5 epochs**, **held-out ROUGE-L** each epoch with **`predict_with_generate`**. The early-stopping metric is **macro mean of per-pattern mean ROUGE-L** on the held-out split (not micro-only), plus logged `eval_rougeL_micro` and `eval_rougeL_worst_pattern`. Manifest records best checkpoint and an `eval_metric_note`.
 
-**Compare:** Pre-model default `models/best/t5-small_lora_task1` vs post `models/best/t5-small_lora_task4` on **100 held-out** adversarial dialogues. Metrics JSON includes **`model_*_resolved`** paths (typically `…/merged`). **Coherence:** `task4_coherence_template.csv` is a **manual rating scaffold only** — no automated coherence score; fill and analyze offline if reporting human scores.
+**Compare:** Pre-model default `models/best/t5-small_lora_task1` vs post `models/best/t5-small_lora_task4` on **100 held-out** dialogues. JSON includes **micro** pre/post `rougeL` / `robustness_gain`, **macro-by-pattern** summaries, and **`rougeL_by_pattern_*`** / **`robustness_gain_by_pattern`**. Paths **`model_*_resolved`** point at merged checkpoints when present. **Coherence:** `task4_coherence_template.csv` is **manual only**.
 
 ---
 
@@ -374,7 +374,11 @@ Attention heatmaps and speaker aggregates use a **teacher-forced forward** on th
 
 **Training:** `train` fits per-rank LoRA on SAMSum; rank 16 may alias `t5-small_lora_task1`. **`train_structured`** loads each rank’s **`merged/`** checkpoint, adds a second LoRA pass with supervised **inner JSON** targets (object body **without** `{` `}`) so T5 does not drop brace tokens as `<unk>`.
 
-**Structured eval:** `parse_success_rate` / `json_validity_rate` = fraction where **`prediction_to_structured_dict_with_trace`** does **not** use the plain-text heuristic (model JSON + schema). `heuristic_fallback_rate` = remainder. `api_envelope_valid_rate` = valid schema after the full helper (may stay high — not “JSON accuracy”). `rougeL_structured_json_vs_gold` = ROUGE on **serialized** structured dicts (more informative than raw string vs gold summary). **Sweet spot:** first try `parse_success_rate ≥ --min-parse-success` (default **0.2**) and free-form ROUGE within 1 pt of the largest rank; if none qualify, **`--fallback-rouge-only`** (default on) picks the **lowest** rank still within the ROUGE window. If still **`sweet_spot` is null**, **`package`** uses **`--default_rank`**. See **`selection_note`** in `task5_sweet_spot.json`.
+**Rank ablation (`eval`):** `task5_rank_ablation.json` lists **`model_size_mb`** (merged checkpoint), **`adapter_weights_mb`** and **`adapter_trainable_params`** (PEFT adapter shards only; `adapter_stats_source` when rank 16 aliases task1’s adapter folder). See **`metric_notes`** in that JSON.
+
+**Structured eval (default pipeline `reliable`):** One summarization forward pass on **`merged/`**, then **`structured_dict_from_model_output`**: **`generative_native_json_rate`** / legacy **`parse_success_rate`** = true model-emitted JSON; **`prose_projection_rate`** / **`heuristic_fallback_rate`** = deterministic prose→schema (no gold labels); **`guaranteed_json_roundtrip_rate`** ≈ **1.0** on the reliable path. **`api_envelope_valid_rate`** = valid schema after the helper. See inline **`metric_notes`** in `task5_structured_output.json`.
+
+**Sweet spot:** Candidates must pass **`generative_native_json_rate` ≥ `--min-parse-success`** (default **0.2**) and sit within **1** ROUGE point of the highest-rank free-form score from `task5_rank_ablation.json`. **`--fallback-rouge-only` defaults off** — then `sweet_spot` may be **`null`** while **`operational_pick_rouge_window_only`** still names a ROUGE-only rank. Enable **`--fallback-rouge-only`** to promote that pick to **`operational_pick`**. **`package`** uses `sweet_spot` → `operational_pick` → **`--default_rank`**. See **`selection_note`** in `task5_sweet_spot.json`.
 
 **Make:** `make task5-train-structured` before `make task5-structured` when testing `merged_structured/` weights.
 

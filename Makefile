@@ -45,7 +45,7 @@ help:
 	@echo "  make task3            Task 3 end-to-end pipeline"
 	@echo "  make task4-generate   Task 4: generate adversarial transcripts"
 	@echo "  make task4-eval       Task 4: robustness eval (150+150)"
-	@echo "  make task4-retrain   Task 4: retrain (70/30, LR 1e-5, ≤3 ep, early stop on adv ROUGE)"
+	@echo "  make task4-retrain   Task 4: retrain (~55/45 mix, LR 5e-6, ≤5 ep, pattern-macro held-out ROUGE)"
 	@echo "  make task4-compare   Task 4: pre/post ROUGE-L comparison"
 	@echo "  make task4            Task 4 end-to-end"
 	@echo "  make task5-train     Task 5: LoRA rank ablation (2,4,8,16,32)"

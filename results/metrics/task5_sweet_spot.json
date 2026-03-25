@@ -1,59 +1,73 @@
 {
   "task": "task5_sweet_spot",
+  "structured_pipeline": "reliable",
   "baseline_rank": 32,
   "baseline_rougeL": 34.5376,
   "min_parse_success": 0.2,
-  "fallback_rouge_only": true,
-  "selection_note": "No rank met min_parse_success; used ROUGE-window-only fallback (lowest rank within 1 ROUGE-L pt of baseline).",
-  "sweet_spot": {
+  "fallback_rouge_only": false,
+  "selection_note": "No rank met generative_native_json_rate >= min_parse_success; sweet_spot left null. See operational_pick_rouge_window_only for a ROUGE-only choice.",
+  "sweet_spot": null,
+  "operational_pick_rouge_window_only": {
     "rank": 16,
     "rougeL": 34.1604,
-    "parse_success_rate": 0.0,
+    "generative_native_json_rate": 0.0,
     "latency_ms": 115.49,
     "size_mb": 230.83
   },
+  "operational_pick": null,
+  "candidates_native_json_gate_within_1pt_rouge": [],
   "candidates_parse_success_within_1pt_rouge": [],
   "structured_vs_freeform_comparison": [
     {
       "rank": 2,
       "free_form_rougeL": 31.3957,
-      "structured_rougeL": 31.1502,
+      "structured_rougeL": 32.0268,
+      "generative_native_json_rate": 0.0,
       "parse_success_rate": 0.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
       "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": -0.2455
+      "structured_vs_freeform_delta": 0.6311
     },
     {
       "rank": 4,
       "free_form_rougeL": 31.2146,
-      "structured_rougeL": 31.6716,
+      "structured_rougeL": 31.3461,
+      "generative_native_json_rate": 0.0,
       "parse_success_rate": 0.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
       "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": 0.457
+      "structured_vs_freeform_delta": 0.1315
     },
     {
       "rank": 8,
       "free_form_rougeL": 31.7165,
-      "structured_rougeL": 31.3229,
+      "structured_rougeL": 31.9986,
+      "generative_native_json_rate": 0.0,
       "parse_success_rate": 0.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
       "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": -0.3936
+      "structured_vs_freeform_delta": 0.2821
     },
     {
       "rank": 16,
       "free_form_rougeL": 34.1604,
-      "structured_rougeL": 34.8104,
+      "structured_rougeL": 33.256,
+      "generative_native_json_rate": 0.0,
       "parse_success_rate": 0.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
       "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": 0.65
+      "structured_vs_freeform_delta": -0.9044
     },
     {
       "rank": 32,
       "free_form_rougeL": 34.5376,
-      "structured_rougeL": 33.7753,
+      "structured_rougeL": 32.6331,
+      "generative_native_json_rate": 0.0,
       "parse_success_rate": 0.0,
+      "guaranteed_json_roundtrip_rate": 1.0,
       "json_validity_rate": 0.0,
-      "structured_vs_freeform_delta": -0.7623
+      "structured_vs_freeform_delta": -1.9045
     }
   ],
-  "note": "Structured eval uses TASK_PREFIX + instruction; if train_structured was run, loads merged_structured (supervised JSON targets). Free-form uses standard summarization. Primary: parse_success_rate >= min_parse_success and ROUGE within 1 pt of baseline. If none qualify and --fallback-rouge-only (default on), pick lowest rank within the ROUGE window. If sweet_spot is still null, `package` uses --default_rank."
+  "note": "sweet_spot requires generative_native_json_rate (strict model JSON) >= min_parse_success and ROUGE within 1 pt of the max-rank baseline. Use guaranteed_json_roundtrip_rate from task5_structured_output.json for API-safe JSON (reliable pipeline). If sweet_spot is null and --no-fallback-rouge-only (default), operational_pick omits ROUGE-only fallback unless explicitly enabled."
 }

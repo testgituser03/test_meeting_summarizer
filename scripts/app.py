@@ -18,13 +18,32 @@ Usage:
   # Opens http://localhost:8501
 """
 
+import importlib.util
 import re
+import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 import torch
 import yaml
+
+# ── Task 5 structured schema (same module as offline eval / packaging) ───────
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+_spec = importlib.util.spec_from_file_location(
+    "task5_lora_structured",
+    _SCRIPTS_DIR / "task5_lora_structured.py",
+)
+_task5 = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_spec.loader.exec_module(_task5)
+structured_dict_from_model_output = _task5.structured_dict_from_model_output
+STRUCTURED_SCHEMA = _task5.STRUCTURED_SCHEMA
+TASK_PREFIX_T5 = _task5.TASK_PREFIX
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -52,6 +71,10 @@ def _discover_models() -> dict[str, str]:
         ckpt_path = best_dir / dirname
         if ckpt_path.exists():
             registry[label] = str(ckpt_path)
+
+    prod = PROJECT_ROOT / "models" / "production_task5"
+    if prod.exists() and any(prod.glob("*.safetensors")):
+        registry["T5 Task 5 (production_task5)"] = str(prod)
     return registry
 
 # ── Regex patterns (per spec) ──────────────────────────────────────────────────
@@ -105,6 +128,20 @@ def _load_nlp():
 
 # ── Inference ──────────────────────────────────────────────────────────────────
 
+def _model_needs_summarize_prefix(model_path: str) -> bool:
+    """T5 / Task-5 production checkpoints were trained with ``summarize: `` (see Task 5 eval)."""
+    p = Path(model_path).resolve()
+    parts = " ".join(p.parts).lower()
+    if "production_task5" in parts:
+        return True
+    name = p.name.lower()
+    if name.startswith("t5-") or "t5_small" in name or "t5-small" in name:
+        return True
+    if "lora_task1" in parts or "lora_task4" in parts or "t5-small_lora" in parts:
+        return True
+    return False
+
+
 def _generate(
     dialogue: str,
     tokenizer,
@@ -113,14 +150,17 @@ def _generate(
     cfg: dict,
     num_beams: int,
     length_penalty: float,
+    *,
+    use_task_prefix: bool = False,
 ) -> tuple[str, float]:
     """Return (summary_text, latency_ms).
 
     torch.mps.synchronize() is called BEFORE stopping the timer so the
     latency figure includes all MPS kernel execution, not just dispatch.
     """
+    enc_text = f"{TASK_PREFIX_T5}{dialogue}" if use_task_prefix else dialogue
     inputs = tokenizer(
-        dialogue,
+        enc_text,
         return_tensors="pt",
         max_length=cfg["max_source_length"],
         truncation=True,
@@ -168,6 +208,45 @@ def _extract_action_items(text: str) -> list[str]:
             seen.add(key)
             deduped.append(item)
     return deduped[:5]
+
+
+def _render_structured_schema(struct: dict[str, Any], source: str) -> None:
+    """Display ``{topics, action_items, decision}`` plus provenance caption."""
+    st.markdown("**Structured output (Task 5 schema)**")
+    st.caption(
+        "Native JSON from the model"
+        if source == "native_json"
+        else (
+            "Schema derived deterministically from the summary text "
+            "(same path as ``task5_lora_structured`` reliable pipeline; not gold labels)."
+        )
+    )
+    topics = struct.get("topics") or []
+    actions = struct.get("action_items") or []
+    decision = struct.get("decision", "")
+    if isinstance(decision, list):
+        decision = " ".join(str(x) for x in decision) if decision else ""
+
+    st.markdown("*Topics*")
+    if topics:
+        for t in topics:
+            st.markdown(f"- {t}")
+    else:
+        st.caption("_None_")
+
+    st.markdown("*Action items*")
+    if actions:
+        for a in actions:
+            st.markdown(f"- {a}")
+    else:
+        st.caption("_None_")
+
+    st.markdown("*Decision / outcome*")
+    st.write(decision if decision else "_None_")
+
+    with st.expander("Raw JSON (API-shaped)"):
+        st.json(struct)
+        st.caption(f"Expected keys: {list(STRUCTURED_SCHEMA.keys())}")
 
 
 # ── Main UI ────────────────────────────────────────────────────────────────────
@@ -261,27 +340,30 @@ def main() -> None:
                 st.warning("⚠️  Please enter a dialogue before clicking Summarize.")
                 st.stop()
 
+            use_prefix = _model_needs_summarize_prefix(model_path)
             with st.spinner("Generating summary…"):
                 summary, latency_ms = _generate(
                     dialogue, tokenizer, model, device, cfg,
                     num_beams      = num_beams,
                     length_penalty = float(length_penalty),
+                    use_task_prefix = use_prefix,
                 )
 
             # ── Summary ──────────────────────────────────────────────────
             st.markdown("**Summary**")
             st.success(summary)
 
-            # ── Action items ──────────────────────────────────────────────
-            # Extract from summary only (not dialogue) to avoid false positives
-            # from modal verbs in quoted speech
+            struct, struct_src = structured_dict_from_model_output(summary)
+            _render_structured_schema(struct, struct_src)
+
+            # ── Regex action items (supplementary; schema above is the contract) ─
             action_items = _extract_action_items(summary)
-            st.markdown("**🗒️ Action Items**")
-            if action_items:
-                for item in action_items:
-                    st.markdown(f"- {item}")
-            else:
-                st.caption("_No action items detected._")
+            with st.expander("Regex action-item highlights (legacy heuristic)", expanded=False):
+                if action_items:
+                    for item in action_items:
+                        st.markdown(f"- {item}")
+                else:
+                    st.caption("_No extra regex hits in the summary text._")
 
             # ── Named entities (spaCy) ────────────────────────────────────
             doc      = nlp(summary)
@@ -305,6 +387,8 @@ def main() -> None:
                 "num_beams"     : num_beams,
                 "length_penalty": float(length_penalty),
                 "latency_ms"    : round(latency_ms, 1),
+                "t5_summarize_prefix": use_prefix,
+                "structured_output_source": struct_src,
             })
 
         else:

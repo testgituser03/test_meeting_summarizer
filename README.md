@@ -673,7 +673,9 @@ python3 scripts/compare_experiments.py      # aggregate all results → CSV + ta
 # Generate data first: make task4-generate  (or scripts/task4_adversarial.py generate)
 PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task4_adversarial.py retrain \
     --base_model models/best/t5-small_lora_task1
-python3 scripts/task4_adversarial.py compare   # pre/post on held-out adversarial
+# Defaults: ~55/45 clean vs adversarial mix, LR 5e-6, up to 5 epochs, early-stop on
+# pattern-macro held-out ROUGE-L (not aggregate-only). Override with flags as needed.
+python3 scripts/task4_adversarial.py compare   # micro + per-pattern pre/post on held-out (see JSON)
 # Coherence: results/metrics/task4_coherence_template.csv is a manual rating sheet only (no auto scores).
 
 # ── Task 5 — LoRA rank sweep + structured JSON ─────────────────────────────
@@ -681,10 +683,11 @@ PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task5_lora_structured.py train --r
 PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task5_lora_structured.py train_structured \
     --ranks 2 4 8 16 32   # writes models/best/t5-small_lora_r*/merged_structured/
 python3 scripts/task5_lora_structured.py eval --ranks 2 4 8 16 32
-python3 scripts/task5_lora_structured.py structured --ranks 8   # parse_success + fallback metrics
-python3 scripts/task5_lora_structured.py sweet_spot              # optional: --min-parse-success 0.2
+# eval → task5_rank_ablation.json: merged size, adapter_weights_mb, adapter_trainable_params
+python3 scripts/task5_lora_structured.py structured --ranks 8   # default: --structured-pipeline reliable
+python3 scripts/task5_lora_structured.py sweet_spot   # native-JSON gate; use --fallback-rouge-only if desired
 python3 scripts/task5_lora_structured.py package                # uses sweet_spot or --default_rank
-# Sweet spot uses parse gate then optional ROUGE-only fallback; if still null, package uses --default_rank.
+# Reliable pipeline: 100% JSON round-trip via projection when needed; native JSON rate is separate (see metric_notes).
 ```
 
 Equivalent `make` targets exist for every command above (`make train`,
@@ -744,7 +747,10 @@ streamlit run scripts/app.py
 
 Paste a dialogue into the text area and click **Summarize**. Adjust beam width
 and length penalty in the settings expander to reproduce the D27 champion
-configuration (`num_beams=5`, `length_penalty=1.33`).
+configuration (`num_beams=5`, `length_penalty=1.33`). The app also renders the
+Task 5 schema (`topics`, `action_items`, `decision`) using the same
+`structured_dict_from_model_output` path as offline eval (native JSON if the
+model emits it; otherwise deterministic prose→schema projection).
 
 ### Python API
 
@@ -793,9 +799,9 @@ print(tokenizer.decode(ids[0], skip_special_tokens=True))
   entity-level confabulations. Action-direction swaps, implied-participant
   errors, and fabricated events (e.g. test example idx=654) are not caught
   and require human review.
-- **Brittle action-item extraction:** The regex pipeline in `app.py` is a
-  proof-of-concept. It produces false positives on quoted speech and misses
-  multi-clause constructions.
+- **Brittle regex highlights:** The optional regex expander in `app.py` is a
+  proof-of-concept. Structured topics / action items / decision come from the
+  Task 5 schema helper (parse-or-project), not from that regex.
 - **Hardware-specific timing:** All latency and training-time figures are from
   Apple M4 Pro MPS. Inference on CUDA will differ in both speed and numerical
   outputs (BF16 rounding differs from FP16/FP32).
