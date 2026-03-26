@@ -1,0 +1,31 @@
+{
+  "source_csv": "results/steering/facebook_bart-base_with_speakers_human_eval_template.csv",
+  "n_rows_file": 200,
+  "n_rated_rows": 200,
+  "clarity_score_mean": 1.94,
+  "clarity_score_stdev": 1.2345,
+  "clarity_score_median": 2.0,
+  "by_layer_alpha": {
+    "L6_a0.0": {
+      "n": 50,
+      "mean": 1.86
+    },
+    "L6_a0.5": {
+      "n": 50,
+      "mean": 1.98
+    },
+    "L6_a1.0": {
+      "n": 50,
+      "mean": 1.94
+    },
+    "L6_a1.5": {
+      "n": 50,
+      "mean": 1.98
+    }
+  },
+  "metric_notes": {
+    "pilot_scope": "Brief asks 50\u00d7 manual 1\u20135 ratings; this file aggregates whatever numeric clarity_score rows exist in the CSV (pilot / partial completion supported).",
+    "methodology": "Scores are human judgments of action-item clarity on steered vs baseline outputs; see results/steering/human_eval_rubric.md."
+  },
+  "generated_at": "2026-03-26T04:21:34.007091+00:00"
+}

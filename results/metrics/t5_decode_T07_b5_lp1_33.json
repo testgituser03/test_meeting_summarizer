@@ -1,0 +1,21 @@
+{
+  "experiment": "t5_decoding_sweep",
+  "config_id": "T07",
+  "label": "beam5_lp1.33",
+  "description": "Analogous to BART D27 neighborhood",
+  "rouge1": 50.9901,
+  "rouge2": 26.1424,
+  "rougeL": 42.2158,
+  "avg_summary_tokens": 19.61,
+  "ms_per_sample": 264.16,
+  "n_samples": 819,
+  "hf_model_id": "google/flan-t5-base",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 5,
+    "length_penalty": 1.33,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-26T08:04:46.014115+00:00"
+}

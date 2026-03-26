@@ -68,6 +68,7 @@ Config IDs: `baseline`, `D7`, `D8`, `D10`, `D12`, `D13`, `D14`, `D17`, `D19`, `D
 | `faithfulness_report.json` | E4: NER hallucination rate, NLI entailment score, speaker preservation |
 | `data_audit.json` | Token-length distributions, speaker stats, leakage check |
 | `experiment_3_decoding_summary.json` | All 29 D-configs ranked by ROUGE-L |
+| `t5_decoding_sweep_summary.json` | **T5-small** beam / length-penalty sweep (12 configs); per-row `t5_decode_*.json`; does not touch BART `decoding_D*.json` |
 | `multi_model_sweep_summary.json` | Best config per model across 68 sweep runs |
 
 ### Task 2 Outputs — Quantization + Real-Time Benchmarking
@@ -101,10 +102,12 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 
 ### Task 5 Outputs — LoRA Rank & Structured Output
 
+**P0 — external reporting:** Do **not** describe **`generative_native_json_rate = 1`** as “the model emits perfect JSON.” Cite **`strict_generative_json_rate`** for that rubric; read **`p0_external_disclaimer`** in `task5_structured_output.json`.
+
 | File | Description |
 |------|-------------|
 | `task5_rank_ablation.json` | Per rank: ROUGE-L, latency, **`model_size_mb`** (merged), **`adapter_weights_mb`**, **`adapter_trainable_params`**; see `metric_notes` |
-| `task5_structured_output.json` | Per rank: **`strict_generative_json_rate`** (`json.loads` strictest), **`salvaged_json_rate`** (JSON-ish recovery), **`generative_native_json_rate`** (strict+salvage; aliases `parse_success_rate` / `json_validity_rate`), `prose_projection_rate`, `guaranteed_json_roundtrip_rate`, `rougeL_structured`; **`metric_notes`** defines terms for graders (differs from “only raw `json.loads` on the string”). Committed **`reliable` + `merged_structured`**: native rate **1.0**, strict often **0** (T5 drift), `n_samples` in file (**64** in repo snapshot) |
+| `task5_structured_output.json` | Per rank: **`strict_generative_json_rate`**, **`salvaged_json_rate`**, **`generative_native_json_rate`** (strict+salvage); **`p0_external_disclaimer`** + **`metric_notes`**. Committed **`reliable` + `merged_structured`**: “native” **1.0** = salvage-mediated; strict often **0**; **`n_samples`** (**64** in snapshot — not full-test population claims) |
 | `task5_structured_train_r*.json` | Per-rank manifest from `train_structured` (samples, LoRA config, `json_target_format`) |
 | `task5_structured_training_summary.json` | Aggregate summary of structured training run |
 | `task5_sweet_spot.json` | Native-JSON gate + ROUGE window; committed file has **non-null `sweet_spot`** (e.g. rank **16**). Optional `--fallback-rouge-only` if gate fails; `package` falls back through `operational_pick` → `--default_rank` |

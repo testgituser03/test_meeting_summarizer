@@ -20,6 +20,11 @@ import numpy as np
 import torch
 import yaml
 
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from model_registry import resolve_model_name
+
 
 def load_config(path: str) -> dict:
     with open(path) as f:
@@ -29,6 +34,11 @@ def load_config(path: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="ROUGE evaluation on SAMSum test set")
     parser.add_argument("--config",     default="config.yaml")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Override config model_name for cache path (e.g. flan-t5-base, t5-small)",
+    )
     parser.add_argument("--model_path", default=None, help="Path to saved model dir")
     parser.add_argument("--variant",    default=None, help="Override dataset_variant")
     parser.add_argument("--split",      default="test", choices=["test", "validation"])
@@ -36,6 +46,9 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    if args.model:
+        cfg["model_name"] = args.model
+    cfg["model_name"] = resolve_model_name(cfg["model_name"])
     if args.variant:
         cfg["dataset_variant"] = args.variant
     if args.batch_size:
@@ -72,9 +85,10 @@ def main() -> None:
     model.eval()
 
     # Load tokenized dataset
+    _cache_sfx = str(cfg.get("tokenized_cache_suffix") or "").strip()
     dataset_path = (
         project_root / "data" / "cache"
-        / f"samsum_{VARIANT}_{MODEL_NAME.replace('/', '_')}"
+        / f"samsum_{VARIANT}_{MODEL_NAME.replace('/', '_')}{_cache_sfx}"
     )
     ds = load_from_disk(str(dataset_path))
     split_ds = ds[args.split]

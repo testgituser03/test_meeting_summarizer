@@ -1,0 +1,21 @@
+{
+  "experiment": "t5_decoding_sweep",
+  "config_id": "T00",
+  "label": "beam4_lp1.0_baseline",
+  "description": "Matches train.py / evaluate.py defaults",
+  "rouge1": 50.9433,
+  "rouge2": 26.4444,
+  "rougeL": 42.322,
+  "avg_summary_tokens": 18.41,
+  "ms_per_sample": 246.72,
+  "n_samples": 819,
+  "hf_model_id": "google/flan-t5-base",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 1.0,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-26T07:41:05.209980+00:00"
+}

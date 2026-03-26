@@ -165,9 +165,10 @@ def main() -> None:
     print(f"  MPS memory (loaded)  : {mps_memory_mb():.1f} MB\n")
 
     # ── Dataset ────────────────────────────────────────────────────────────────
+    _cache_sfx = str(cfg.get("tokenized_cache_suffix") or "").strip()
     dataset_path = (
         project_root / "data" / "cache"
-        / f"samsum_{VARIANT}_{MODEL_NAME.replace('/', '_')}"
+        / f"samsum_{VARIANT}_{MODEL_NAME.replace('/', '_')}{_cache_sfx}"
     )
     if not dataset_path.exists():
         print(f"\n  ❌  Cached dataset not found: {dataset_path}")

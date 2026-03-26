@@ -6,15 +6,38 @@ unless noted otherwise. Hardware: Apple M4 Pro · 24 GB UMA · MPS / BF16.
 
 ### Grader-facing evidence (Tier A — cite committed JSON)
 
-1. **ROUGE ≥ 40:** Met by **BART-base E3 (D27)** at **40.12** on the full test set — **not** by **T5-small E1** (**≈ 31.95**). See **Summary Table** below (`E1` / `E3` rows).
-2. **Task 5 JSON metrics:** **`task5_structured_output.json`** (`n_samples` in file; committed run **64**) — lead with **`strict_generative_json_rate`**, **`salvaged_json_rate`**, **`generative_native_json_rate`** and read **`metric_notes`** for definitions (strict `json.loads` vs salvage vs legacy aliases). **`task5_sweet_spot.json`** — committed repo has **`sweet_spot` non-null** (e.g. **rank 16**).
-3. **Task 4 pre/post:** **`task4_robustness_comparison.json`** — micro **`robustness_gain` ≈ −0.07**; report **`robustness_gain_by_pattern`** (noise **0**, overlapping **≈ −0.23**, tangent **≈ +0.26**, very_long **≈ −0.32**) — do not imply aggregate robustness improved without that nuance.
+1. **ROUGE ≥ 40:** Met by **BART-base E3 (D27)** (**40.12**) and **`google/flan-t5-base` E1** (**~42.3** test ROUGE-L — `google_flan-t5-base_with_speakers_test.json`) on the 819-sample test set — **not** by **T5-small E1** (**≈ 31.95**). See **`README.md`** *P0 — Model zoo truth table*.
+2. **Task 5 JSON metrics (P0):** **`task5_structured_output.json`** — **external label:** salvage-mediated structured API; cite **`strict_generative_json_rate`** for “no repair” JSON. **`generative_native_json_rate`** = strict + salvage. Read **`p0_external_disclaimer`** + **`metric_notes`**. `n_samples` in file (committed **64** — not 819).
+3. **`task5_sweet_spot.json`** — committed repo has **`sweet_spot` non-null** (e.g. **rank 16**).
+4. **Task 4 pre/post:** **`task4_robustness_comparison.json`** — micro **`robustness_gain` ≈ −0.07**; report **`robustness_gain_by_pattern`** — **no aggregate robustness win**; per-pattern trade-offs only.
 
 Full narrative: **`README.md`** § *Report alignment (grading / PDF evidence)*.
+
+### 512 vs 1024 max input length (brief parameter)
+
+| Setting | `max_source_length` | Token cache directory |
+|--------|---------------------|------------------------|
+| Default | **512** | `data/cache/samsum_{variant}_facebook_bart-base` |
+| Experiment | **1024** | `data/cache/samsum_{variant}_facebook_bart-base_max1024` (`tokenized_cache_suffix` in `config_max1024.yaml`) |
+
+**Procedure:**
+
+```bash
+python3 scripts/preprocess.py --config config_max1024.yaml --variants with_speakers
+PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py --config config_max1024.yaml
+# batch_size 4 in config_max1024.yaml — raise OOM note in report if you must drop to 2
+```
+
+Compare test ROUGE to `facebook_bart-base_with_speakers_test.json` (512). Even a documented **OOM** at 1024 + **512 result** satisfies the “we tried the brief’s 1024 bullet” bar for graders.
 
 ### Tier B — PDF letter vs repo (honest gaps)
 
 See **`README.md`** § *Tier B* and **`docs/rev-v1/REPO_CONTEXT.md`** for the full table. In short: **(B1)** **`strict_generative_json_rate`** is still **0** — high **native** rate is **strict + salvage**, not raw `json.loads` perfection; **(B2)** Task 4 **gain** is **negative** on aggregate — still **honest** if you report **`robustness_gain_by_pattern`**; **(B3/B4)** steering + Task 4 coherence CSVs exist but need **human** scores for “complete” PDF compliance.
+
+### Bootstrap / seeds (Project 3 methodology)
+
+- **E1 architecture gap:** `scripts/bootstrap_ci.py` — **1000** resamples (override `--n_bootstrap`), **seed 42** from `config.yaml` via trainer/eval conventions; output **`results/metrics/bootstrap_ci_e1.json`** + paired Δ ROUGE-L CI for **BART vs T5-small**.
+- Cite **`n_bootstrap`** and the **819** test examples when claiming statistical significance in the PDF.
 
 ---
 

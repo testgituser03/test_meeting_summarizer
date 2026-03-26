@@ -6,7 +6,10 @@
 
 # ── Model ─────────────────────────────────────────────────────────────────────
 model_name: "facebook/bart-base"       # Primary seq2seq model for fine-tuning
-task_prefix: ""                        # BART: no task prefix; T5 uses "summarize: "
+# task_prefix: empty → preprocess.py injects "summarize: " for T5 / FLAN-T5 only (see scripts/model_registry.py).
+# T5-class try-order for a higher ROUGE ceiling than t5-small: flan-t5-base → flan-t5-small → t5-small
+#   (make train-flan-base / make train-flan-small / make train-t5 after matching preprocess --model …).
+task_prefix: ""                        # BART / default: no prefix; override only if you know the model’s format
 
 # ── Tokenization ──────────────────────────────────────────────────────────────
 max_source_length: 512                 # p99 dialogue = 525 T5 tokens; ~1% truncated at 512 (see data_audit.json)
@@ -56,3 +59,5 @@ save_total_limit: 2                    # Retain only 2 checkpoints on disk; ≈ 
 # ── Dataset ───────────────────────────────────────────────────────────────────
 dataset_name: "knkarthick/samsum"      # HuggingFace Hub ID; pre-downloaded to local cache
 dataset_variant: "with_speakers"      # "with_speakers" preserves speaker tags; "no_speakers" strips them (E2 ablation)
+# Optional suffix for preprocess/train/eval cache path (see config_max1024.yaml).
+tokenized_cache_suffix: ""

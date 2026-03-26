@@ -2,6 +2,9 @@
 """
 extract_activations.py — Task 3 / activation extraction for focus steering.
 
+Grading note: default “topic vs action” buckets use **heuristic** labels on gold summaries,
+not PDF-perfect **human** dialogue labels. See **docs/rev-v2/TASK3_METHODOLOGY.md**.
+
 Design:
   • Uses decoder hidden states from teacher-forced forward pass (deterministic).
   • Pools each selected decoder layer to one vector per example (mask-aware mean).

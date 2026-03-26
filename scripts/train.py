@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-train.py — Fine-tune seq2seq model (BART-base or T5-small) on SAMSum.
+train.py — Fine-tune seq2seq model (BART-base, T5-small, FLAN-T5, …) on SAMSum.
 
 Reads ALL hyperparameters from config.yaml — nothing is hardcoded.
 Requires pre-tokenized dataset in data/cache/ (run preprocess.py first).
@@ -13,7 +13,9 @@ Outputs:
 Usage:
   python3 scripts/train.py
   python3 scripts/train.py --model t5-small
+  python3 scripts/train.py --model flan-t5-base    # alias → google/flan-t5-base
   python3 scripts/train.py --model facebook/bart-base --variant no_speakers
+  python3 scripts/train.py --model t5-small --abort-if-first-eval-rougeL-below 31.5
 """
 
 # ── CRITICAL: Set MPS fallback BEFORE torch is imported ─────────────────────
@@ -34,6 +36,11 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
+
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from model_registry import resolve_model_name
 
 
 def load_config(path: str) -> dict:
@@ -144,11 +151,22 @@ def main() -> None:
     parser.add_argument("--config",  default="config.yaml")
     parser.add_argument("--model",   default=None, help="Override model_name in config")
     parser.add_argument("--variant", default=None, help="Override dataset_variant (with/no_speakers)")
+    parser.add_argument(
+        "--abort-if-first-eval-rougeL-below",
+        type=float,
+        default=None,
+        metavar="X",
+        help=(
+            "After the first validation epoch, stop training immediately if eval_rougeL < X "
+            "(saves time on misconfigured T5/BART runs). Default: off."
+        ),
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     if args.model:
         cfg["model_name"] = args.model
+    cfg["model_name"] = resolve_model_name(cfg["model_name"])
     if args.variant:
         cfg["dataset_variant"] = args.variant
 
@@ -184,6 +202,28 @@ def main() -> None:
                 self._recorded = True
                 print(f"  MPS memory (post-epoch1): {self.post_epoch1_mb:.1f} MB")
 
+    class _FirstEvalCanaryCallback(TrainerCallback):  # noqa: PLC0415
+        """Optional hard stop after first eval if ROUGE is below a floor (hyperparameter grid guard)."""
+
+        def __init__(self, min_rougeL: float) -> None:
+            self._min = float(min_rougeL)
+            self._fired = False
+
+        def on_evaluate(self, args, state, control, metrics=None, **kwargs):  # noqa: ANN001
+            if self._fired or metrics is None:
+                return
+            rl = metrics.get("eval_rougeL")
+            if rl is None:
+                return
+            self._fired = True
+            if float(rl) < self._min:
+                print(
+                    f"\n  ⚠️  Canary stop: first eval_rougeL={float(rl):.4f} < {self._min} "
+                    "(--abort-if-first-eval-rougeL-below) — ending training.",
+                    file=sys.stderr,
+                )
+                control.should_training_stop = True
+
     memory_cb  = _MpsMemoryCallback()
 
     device     = get_device()
@@ -218,9 +258,10 @@ def main() -> None:
     print(f"  MPS memory (post-load) : {mem_post_load:.1f} MB")
 
     # ── Dataset ────────────────────────────────────────────────────────────
+    _cache_sfx = str(cfg.get("tokenized_cache_suffix") or "").strip()
     dataset_path = (
         project_root / "data" / "cache"
-        / f"samsum_{VARIANT}_{MODEL_NAME.replace('/', '_')}"
+        / f"samsum_{VARIANT}_{MODEL_NAME.replace('/', '_')}{_cache_sfx}"
     )
     if not dataset_path.exists():
         print(f"\n  ❌  Cached dataset not found: {dataset_path}")
@@ -272,6 +313,13 @@ def main() -> None:
         return_tensors="pt",
     )
 
+    train_callbacks = [
+        EarlyStoppingCallback(early_stopping_patience=cfg["early_stopping_patience"]),
+        memory_cb,
+    ]
+    if args.abort_if_first_eval_rougeL_below is not None:
+        train_callbacks.append(_FirstEvalCanaryCallback(args.abort_if_first_eval_rougeL_below))
+
     trainer = Seq2SeqTrainer(
         model              = model,
         args               = training_args,
@@ -280,12 +328,7 @@ def main() -> None:
         processing_class   = tokenizer,
         data_collator      = data_collator,
         compute_metrics    = make_compute_metrics(tokenizer),
-        callbacks       = [
-            EarlyStoppingCallback(
-                early_stopping_patience=cfg["early_stopping_patience"]
-            ),
-            memory_cb,
-        ],
+        callbacks          = train_callbacks,
     )
 
     # ── Train ──────────────────────────────────────────────────────────────

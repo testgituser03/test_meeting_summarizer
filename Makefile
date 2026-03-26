@@ -26,9 +26,12 @@ help:
 	@echo "  make train         Fine-tune BART-base (reads config.yaml)"
 	@echo "  make train-lora    LoRA fine-tune BART-base (0.63% trainable params)"
 	@echo "  make train-t5      Fine-tune T5-small"
+	@echo "  make train-flan-base   Fine-tune google/flan-t5-base (preprocess --model flan-t5-base first)"
+	@echo "  make train-flan-small  Fine-tune google/flan-t5-small"
 	@echo "  make train-ext     Extended training schedule (config_extended.yaml)"
 	@echo "  make evaluate      ROUGE evaluation on saved best checkpoint"
 	@echo "  make decoding      E3: 29-config decoding ablation sweep"
+	@echo "  make t5-decoding-sweep  T5/FLAN-T5 beam/length_penalty sweep (see script --model flan-t5-base)"
 	@echo "  make faithfulness  E4: NER hallucination + NLI faithfulness"
 	@echo "  make bootstrap     Bootstrap 95% CIs for E1 models"
 	@echo "  make task1-train   Task 1: train T5-small LoRA on SAMSum (5 epochs)"
@@ -55,9 +58,12 @@ help:
 	@echo "  make task5-sweet     Task 5: identify sweet spot"
 	@echo "  make task5-package   Task 5: package production baseline"
 	@echo "  make task5           Task 5 end-to-end"
-	@echo "  make tier-a-status  Generate Tier-A grader status from current JSON artifacts"
 	@echo "  make compare       Aggregate all results → comparison table + CSV"
 	@echo "  make demo          Launch Streamlit inference demo on :8501"
+	@echo "  make gradio-demo   Gradio demo (default :7860; auto next port if busy; GRADIO_SERVER_PORT=...)"
+	@echo "  make task5-structured-smoke  Task 5 structured eval --n_samples 64 (fast sanity)"
+	@echo "  make preprocess-1024 Tokenize with config_max1024.yaml (1024 context cache)"
+	@echo "  make flan-decode-sweep  FLAN-T5-base decoding sweep (needs trained checkpoint)"
 	@echo ""
 
 # ── Environment ───────────────────────────────────────────────────────────────
@@ -82,10 +88,13 @@ download:
 audit:
 	$(PYTHON) scripts/data_audit.py
 
-.PHONY: preprocess
+.PHONY: preprocess preprocess-1024
 preprocess:
 	$(PYTHON) scripts/preprocess.py --variants with_speakers no_speakers
 	$(PYTHON) scripts/preprocess.py --variants split_speakers
+
+preprocess-1024:
+	$(PYTHON) scripts/preprocess.py --config config_max1024.yaml --variants with_speakers
 
 # ── Training ──────────────────────────────────────────────────────────────────
 .PHONY: zeroshot
@@ -100,9 +109,15 @@ train:
 train-lora:
 	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/train_lora.py
 
-.PHONY: train-t5
+.PHONY: train-t5 train-flan-base train-flan-small
 train-t5:
 	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/train.py --model t5-small
+
+train-flan-base:
+	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/train.py --model flan-t5-base
+
+train-flan-small:
+	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/train.py --model flan-t5-small
 
 .PHONY: train-ext
 train-ext:
@@ -116,6 +131,13 @@ evaluate:
 .PHONY: decoding
 decoding:
 	$(PYTHON) scripts/decoding_ablation.py
+
+.PHONY: t5-decoding-sweep flan-decode-sweep
+t5-decoding-sweep:
+	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/t5_decoding_sweep.py
+
+flan-decode-sweep:
+	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/t5_decoding_sweep.py --model flan-t5-base
 
 .PHONY: faithfulness
 faithfulness:
@@ -229,9 +251,12 @@ task5-train-structured:
 task5-eval:
 	$(PYTHON) scripts/task5_lora_structured.py eval --ranks 2 4 8 16 32
 
-.PHONY: task5-structured
+.PHONY: task5-structured task5-structured-smoke
 task5-structured:
 	$(PYTHON) scripts/task5_lora_structured.py structured --ranks 2 4 8 16 32
+
+task5-structured-smoke:
+	$(PYTHON) scripts/task5_lora_structured.py structured --ranks 2 4 8 16 32 --n_samples 64
 
 .PHONY: task5-sweet
 task5-sweet:
@@ -248,11 +273,10 @@ task5: task5-train task5-train-structured task5-eval task5-structured task5-swee
 compare:
 	$(PYTHON) scripts/compare_experiments.py
 
-.PHONY: tier-a-status
-tier-a-status:
-	$(PYTHON) scripts/tier_a_status.py
-
 # ── Demo ──────────────────────────────────────────────────────────────────────
-.PHONY: demo
+.PHONY: demo gradio-demo
 demo:
 	bash scripts/run_app.sh
+
+gradio-demo:
+	PYTORCH_ENABLE_MPS_FALLBACK=1 $(PYTHON) scripts/gradio_demo.py

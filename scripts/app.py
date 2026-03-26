@@ -67,6 +67,7 @@ def _discover_models() -> dict[str, str]:
         ("BART-base (with_speakers)", "facebook_bart-base_with_speakers"),
         ("BART-base LoRA",            "facebook_bart-base_lora"),
         ("BART-base (no_speakers)",   "facebook_bart-base_no_speakers"),
+        ("FLAN-T5-base (with_speakers)", "google_flan-t5-base_with_speakers"),
         ("T5-small (with_speakers)",  "t5-small_with_speakers"),
         ("PEGASUS (with_speakers)",   "google_pegasus-cnn_dailymail_with_speakers"),
     ]
@@ -132,12 +133,14 @@ def _load_nlp():
 # ── Inference ──────────────────────────────────────────────────────────────────
 
 def _model_needs_summarize_prefix(model_path: str) -> bool:
-    """T5 / Task-5 production checkpoints were trained with ``summarize: `` (see Task 5 eval)."""
+    """T5 / FLAN-T5 / Task-5 production checkpoints use ``summarize: `` in preprocess."""
     p = Path(model_path).resolve()
     parts = " ".join(p.parts).lower()
     if "production_task5" in parts:
         return True
     name = p.name.lower()
+    if "flan-t5" in name or "flan_t5" in parts:
+        return True
     if name.startswith("t5-") or "t5_small" in name or "t5-small" in name:
         return True
     if "lora_task1" in parts or "lora_task4" in parts or "t5-small_lora" in parts:

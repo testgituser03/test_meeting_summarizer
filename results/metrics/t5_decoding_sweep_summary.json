@@ -1,0 +1,271 @@
+{
+  "experiment": "t5_decoding_sweep",
+  "hf_model_id": "google/flan-t5-base",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+  "n_samples": 819,
+  "baseline_rougeL_from_train_artifact": 42.275,
+  "best_config_id": "T01",
+  "best_label": "beam4_lp0.9",
+  "best_rougeL": 42.3434,
+  "best_gen_kwargs": {
+    "num_beams": 4,
+    "length_penalty": 0.9,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "configs": [
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T00",
+      "label": "beam4_lp1.0_baseline",
+      "description": "Matches train.py / evaluate.py defaults",
+      "rouge1": 50.9433,
+      "rouge2": 26.4444,
+      "rougeL": 42.322,
+      "avg_summary_tokens": 18.41,
+      "ms_per_sample": 246.72,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.0,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T07:41:05.209980+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T01",
+      "label": "beam4_lp0.9",
+      "description": "Slightly shorter summaries",
+      "rouge1": 50.7893,
+      "rouge2": 26.4301,
+      "rougeL": 42.3434,
+      "avg_summary_tokens": 18.01,
+      "ms_per_sample": 242.57,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 0.9,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T07:44:24.570683+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T02",
+      "label": "beam4_lp1.1",
+      "description": null,
+      "rouge1": 51.0593,
+      "rouge2": 26.4701,
+      "rougeL": 42.3291,
+      "avg_summary_tokens": 18.87,
+      "ms_per_sample": 243.38,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.1,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T07:47:44.579739+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T03",
+      "label": "beam4_lp1.2",
+      "description": null,
+      "rouge1": 51.0863,
+      "rouge2": 26.4578,
+      "rougeL": 42.2696,
+      "avg_summary_tokens": 19.17,
+      "ms_per_sample": 235.8,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.2,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T07:50:58.366529+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T04",
+      "label": "beam4_lp1.25",
+      "description": null,
+      "rouge1": 50.9915,
+      "rouge2": 26.3059,
+      "rougeL": 42.1035,
+      "avg_summary_tokens": 19.28,
+      "ms_per_sample": 243.08,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.25,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T07:54:18.122453+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T05",
+      "label": "beam4_lp1.3",
+      "description": null,
+      "rouge1": 50.9429,
+      "rouge2": 26.2433,
+      "rougeL": 42.0481,
+      "avg_summary_tokens": 19.37,
+      "ms_per_sample": 235.91,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 4,
+        "length_penalty": 1.3,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T07:57:31.993601+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T06",
+      "label": "beam5_lp1.2",
+      "description": null,
+      "rouge1": 51.077,
+      "rouge2": 26.2919,
+      "rougeL": 42.3348,
+      "avg_summary_tokens": 19.35,
+      "ms_per_sample": 264.13,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 5,
+        "length_penalty": 1.2,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T08:01:08.991339+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T07",
+      "label": "beam5_lp1.33",
+      "description": "Analogous to BART D27 neighborhood",
+      "rouge1": 50.9901,
+      "rouge2": 26.1424,
+      "rougeL": 42.2158,
+      "avg_summary_tokens": 19.61,
+      "ms_per_sample": 264.16,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 5,
+        "length_penalty": 1.33,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T08:04:46.014115+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T08",
+      "label": "beam6_lp1.15",
+      "description": null,
+      "rouge1": 51.0194,
+      "rouge2": 26.0569,
+      "rougeL": 42.117,
+      "avg_summary_tokens": 19.24,
+      "ms_per_sample": 289.49,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 6,
+        "length_penalty": 1.15,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T08:08:43.782382+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T09",
+      "label": "beam8_lp1.0",
+      "description": "Wider beam, neutral lp",
+      "rouge1": 50.8839,
+      "rouge2": 26.074,
+      "rougeL": 42.0837,
+      "avg_summary_tokens": 18.72,
+      "ms_per_sample": 336.78,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 8,
+        "length_penalty": 1.0,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T08:13:20.302812+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T10",
+      "label": "beam8_lp1.2",
+      "description": null,
+      "rouge1": 50.9315,
+      "rouge2": 25.9716,
+      "rougeL": 42.0689,
+      "avg_summary_tokens": 19.57,
+      "ms_per_sample": 336.0,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 8,
+        "length_penalty": 1.2,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T08:17:56.248072+00:00"
+    },
+    {
+      "experiment": "t5_decoding_sweep",
+      "config_id": "T11",
+      "label": "beam8_lp1.25",
+      "description": null,
+      "rouge1": 50.821,
+      "rouge2": 25.8988,
+      "rougeL": 41.9443,
+      "avg_summary_tokens": 19.68,
+      "ms_per_sample": 339.23,
+      "n_samples": 819,
+      "hf_model_id": "google/flan-t5-base",
+      "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+      "gen_kwargs": {
+        "num_beams": 8,
+        "length_penalty": 1.25,
+        "do_sample": false,
+        "early_stopping": true
+      },
+      "timestamp": "2026-03-26T08:22:34.902784+00:00"
+    }
+  ],
+  "generated_at": "2026-03-26T08:22:35.052754+00:00"
+}

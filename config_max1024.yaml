@@ -1,0 +1,50 @@
+# config_max1024.yaml — Brief / audit: 512 vs 1024 max input length experiment
+# Uses a separate on-disk token cache from default config.yaml (see tokenized_cache_suffix).
+
+# Inherit semantics from config.yaml; only override what changes.
+model_name: "facebook/bart-base"
+task_prefix: ""
+
+max_source_length: 1024
+max_target_length: 128
+
+# 1024 sequences need more memory; drop batch if OOM on 24 GB UMA.
+batch_size: 4
+
+learning_rate: 5.0e-5
+weight_decay: 0.01
+num_epochs: 3
+warmup_steps: 500
+gradient_clip_max_norm: 1.0
+
+num_beams: 4
+length_penalty: 1.0
+early_stopping_beam: true
+
+early_stopping_patience: 2
+metric_for_best_model: "rougeL"
+load_best_model_at_end: true
+greater_is_better: true
+
+evaluation_strategy: "epoch"
+save_strategy: "epoch"
+predict_with_generate: true
+
+use_bf16: true
+use_fp16: false
+optimizer: "adamw"
+lr_scheduler_type: "linear"
+
+dataloader_num_workers: 0
+dataloader_pin_memory: false
+dataloader_prefetch_factor: 2
+
+seed: 42
+save_total_limit: 2
+
+dataset_name: "knkarthick/samsum"
+dataset_variant: "with_speakers"
+run_name: "facebook_bart-base_with_speakers_max1024"
+
+# CRITICAL: distinct cache dir from 512-token runs (same hub id otherwise collides).
+tokenized_cache_suffix: "_max1024"

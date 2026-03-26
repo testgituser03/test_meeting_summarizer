@@ -43,6 +43,8 @@ def _download_model(model_id: str) -> None:
 
 def main() -> None:
     _ensure_hf_token_env()
+    _download_model("google/flan-t5-base")
+    _download_model("google/flan-t5-small")
     _download_model("t5-small")
     _download_model("facebook/bart-base")
     _download_model("google/pegasus-cnn_dailymail")

@@ -44,15 +44,10 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 import torch  # noqa: E402 (import after env-var setup)
 import yaml   # noqa: E402
 
-
-# Model-specific task prefixes.
-# T5 was pre-trained with "summarize: " on CNN/DM + multi-task text-to-text;
-# BART's denoising pre-training requires no task prefix at all.
-# These are fixed by model architecture — they are NOT tunable hyperparameters.
-MODEL_TASK_PREFIXES: dict[str, str] = {
-    "t5-small":           "summarize: ",
-    "facebook/bart-base": "",
-}
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from model_registry import effective_task_prefix, resolve_model_name
 
 # Conservative batch size — avoids OOM spikes during first-run MPSGraph
 # kernel compilation, which temporarily peaks higher than steady-state.
@@ -101,20 +96,21 @@ def evaluate_model(
     from rouge_score import rouge_scorer                        # noqa: PLC0415
     from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # noqa: PLC0415
 
-    task_prefix = MODEL_TASK_PREFIXES.get(model_id, "")
+    resolved    = resolve_model_name(model_id)
+    task_prefix = effective_task_prefix(resolved, cfg.get("task_prefix"))
     n_samples   = len(dialogues)
 
     print(f"\n{'─' * 62}")
-    print(f"  Model      : {model_id}")
+    print(f"  Model      : {resolved}" + (f"  (from '{model_id}')" if resolved != model_id else ""))
     print(f"  Samples    : {n_samples}")
     print(f"  Task prefix: '{task_prefix}'")
     print(f"  Device     : {device}  |  BF16: {cfg['use_bf16']}")
     print(f"{'─' * 62}")
 
     # ── Load model ──────────────────────────────────────────────────────
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained(resolved)
     model = AutoModelForSeq2SeqLM.from_pretrained(
-        model_id,
+        resolved,
         torch_dtype=torch.bfloat16 if cfg["use_bf16"] else torch.float32,
     ).to(device)
     model.eval()
@@ -185,7 +181,7 @@ def evaluate_model(
     print(f"  ROUGE-L : {rougeL:.2f}")
 
     result = {
-        "model":    model_id,
+        "model":    resolved,
         "n_samples": n_samples,
         "rouge1":   rouge1,
         "rouge2":   rouge2,
@@ -225,8 +221,10 @@ def main() -> None:
         "--models",
         nargs="+",
         default=["t5-small", "facebook/bart-base"],
-        choices=list(MODEL_TASK_PREFIXES.keys()),
-        help="Models to evaluate (default: both)",
+        help=(
+            "Hub ids or aliases (flan-t5-base, flan-t5-small, t5-small, bart-base, …). "
+            "Default: t5-small facebook/bart-base"
+        ),
     )
     args = parser.parse_args()
 
@@ -275,11 +273,12 @@ def main() -> None:
             cfg        = cfg,
             device     = device,
         )
-        all_results[model_id] = result
+        resolved_key = resolve_model_name(model_id)
+        all_results[resolved_key] = result
 
         # Write immediately after each model — don't lose results if the
         # second model crashes (e.g. OOM on first run of BART).
-        slug     = model_id.replace("/", "_")
+        slug     = resolved_key.replace("/", "_")
         out_path = metrics_dir / f"zeroshot_{slug}.json"
         with open(out_path, "w") as fh:
             json.dump(result, fh, indent=2)
@@ -292,7 +291,7 @@ def main() -> None:
         print(f"{'═' * 62}")
         print(f"  {'Model':<28} {'ROUGE-1':>8} {'ROUGE-2':>8} {'ROUGE-L':>8}")
         print(f"  {'─' * 28} {'─' * 8} {'─' * 8} {'─' * 8}")
-        for model_id, res in all_results.items():
+        for model_id, res in sorted(all_results.items()):
             print(
                 f"  {model_id:<28} "
                 f"{res['rouge1']:>8.2f} "

@@ -12,6 +12,7 @@ Variants:
 Usage:
   python3 scripts/preprocess.py                         # uses config.yaml
   python3 scripts/preprocess.py --model t5-small        # override model
+  python3 scripts/preprocess.py --online --model flan-t5-base   # allow HF download if tokenizer not cached
   python3 scripts/preprocess.py --variants with_speakers no_speakers
 """
 
@@ -22,6 +23,11 @@ import sys
 from pathlib import Path
 
 import yaml
+
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from model_registry import effective_task_prefix, resolve_model_name
 
 
 def load_config(path: str = "config.yaml") -> dict:
@@ -135,14 +141,17 @@ def make_preprocess_split_speakers_fn(
 
 
 def main() -> None:
-    # Enforce offline mode BEFORE any HuggingFace imports — all assets must
-    # already be cached in ~/.cache/huggingface/ by predownload_assets.py.
-    os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
-    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-
     parser = argparse.ArgumentParser(description="Tokenize SAMSum into data/cache/")
     parser.add_argument("--config",   default="config.yaml")
     parser.add_argument("--model",    default=None, help="Override model_name")
+    parser.add_argument(
+        "--online",
+        action="store_true",
+        help=(
+            "Allow Hugging Face downloads for tokenizer/dataset (default: offline-only). "
+            "Use for a new hub id before cache is warm, or run predownload_assets.py online first."
+        ),
+    )
     parser.add_argument(
         "--variants",
         nargs="+",
@@ -151,14 +160,22 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Offline by default (reproducible, no surprise network). --online opts in.
+    if args.online:
+        os.environ["HF_DATASETS_OFFLINE"] = "0"
+        os.environ["TRANSFORMERS_OFFLINE"] = "0"
+    else:
+        os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
+        os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
     cfg = load_config(args.config)
     if args.model:
         cfg["model_name"] = args.model
 
-    MODEL_NAME     = cfg["model_name"]
+    MODEL_NAME     = resolve_model_name(cfg["model_name"])
     MAX_SOURCE_LEN = cfg["max_source_length"]
     MAX_TARGET_LEN = cfg["max_target_length"]
-    TASK_PREFIX    = cfg["task_prefix"]
+    TASK_PREFIX    = effective_task_prefix(MODEL_NAME, cfg.get("task_prefix"))
 
     project_root = Path(args.config).parent if "/" in args.config else Path.cwd()
     cache_dir    = project_root / "data" / "cache"
@@ -172,6 +189,7 @@ def main() -> None:
         sys.exit(1)
 
     print(f"\n  Model      : {MODEL_NAME}")
+    print(f"  HF hub     : {'online (downloads OK)' if args.online else 'offline-only'}")
     print(f"  Source len : {MAX_SOURCE_LEN}   Target len : {MAX_TARGET_LEN}")
     print(f"  Task prefix: '{TASK_PREFIX}'")
     print(f"  Variants   : {args.variants}\n")
@@ -186,9 +204,10 @@ def main() -> None:
     }
 
     model_slug = MODEL_NAME.replace("/", "_")
+    cache_suffix = str(cfg.get("tokenized_cache_suffix") or "").strip()
 
     for variant in args.variants:
-        out_path = cache_dir / f"samsum_{variant}_{model_slug}"
+        out_path = cache_dir / f"samsum_{variant}_{model_slug}{cache_suffix}"
         if out_path.exists():
             print(f"  ⚡  {variant}: already cached at {out_path.name} — skipping")
             continue

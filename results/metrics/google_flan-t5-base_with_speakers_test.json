@@ -1,0 +1,27 @@
+{
+  "model": "google/flan-t5-base",
+  "variant": "with_speakers",
+  "run_name": "google_flan-t5-base_with_speakers",
+  "dataset": "knkarthick/samsum",
+  "split": "test",
+  "n_samples": 819,
+  "rouge1": 51.1326,
+  "rouge2": 26.4657,
+  "rougeL": 42.275,
+  "training_time_minutes": 181.41,
+  "best_epoch": 3.0,
+  "best_val_rougeL": 42.983,
+  "memory_profile_mb": {
+    "pre_load": 0.5,
+    "post_load": 1082.6,
+    "post_epoch1": 20030.9,
+    "post_train": 20328.9
+  },
+  "generation_config": {
+    "num_beams": 4,
+    "max_new_tokens": 128,
+    "length_penalty": 1.0,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-25T20:34:31.284400+00:00"
+}

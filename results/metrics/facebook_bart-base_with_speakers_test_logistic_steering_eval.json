@@ -75,8 +75,43 @@
     "template_csv": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/results/steering/facebook_bart-base_with_speakers_human_eval_template.csv",
     "rubric": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/results/steering/human_eval_rubric.md",
     "n_requested_samples": 50,
-    "ratings_csv": null,
-    "ratings_summary": null
+    "ratings_csv": "results/steering/facebook_bart-base_with_speakers_human_eval_rated_backup.csv",
+    "ratings_summary": [
+      {
+        "layer": 6,
+        "alpha": 0.0,
+        "n_rated": 50,
+        "clarity_mean": 1.86,
+        "clarity_std": 1.1491
+      },
+      {
+        "layer": 6,
+        "alpha": 0.5,
+        "n_rated": 50,
+        "clarity_mean": 1.98,
+        "clarity_std": 1.2568
+      },
+      {
+        "layer": 6,
+        "alpha": 1.0,
+        "n_rated": 50,
+        "clarity_mean": 1.94,
+        "clarity_std": 1.2068
+      },
+      {
+        "layer": 6,
+        "alpha": 1.5,
+        "n_rated": 50,
+        "clarity_mean": 1.98,
+        "clarity_std": 1.3037
+      }
+    ]
   },
-  "global_best": null
+  "global_best": {
+    "layer": 6,
+    "alpha": 0.5,
+    "clarity_mean": 1.98,
+    "rougeL": 39.7944,
+    "rouge_drop_pct_vs_alpha0": 0.2874
+  }
 }

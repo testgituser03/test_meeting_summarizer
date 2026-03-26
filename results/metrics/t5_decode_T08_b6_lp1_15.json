@@ -1,0 +1,21 @@
+{
+  "experiment": "t5_decoding_sweep",
+  "config_id": "T08",
+  "label": "beam6_lp1.15",
+  "description": null,
+  "rouge1": 51.0194,
+  "rouge2": 26.0569,
+  "rougeL": 42.117,
+  "avg_summary_tokens": 19.24,
+  "ms_per_sample": 289.49,
+  "n_samples": 819,
+  "hf_model_id": "google/flan-t5-base",
+  "model_path": "/Users/vnissankararao/dsgrid/dstask2/meeting-summarizer/models/best/google_flan-t5-base_with_speakers",
+  "gen_kwargs": {
+    "num_beams": 6,
+    "length_penalty": 1.15,
+    "do_sample": false,
+    "early_stopping": true
+  },
+  "timestamp": "2026-03-26T08:08:43.782382+00:00"
+}

@@ -6,9 +6,10 @@
 ![Platform macOS Sequoia](https://img.shields.io/badge/Platform-macOS%20Sequoia-000000?logo=apple&logoColor=white)
 
 Abstractive dialogue summarization via fine-tuned sequence-to-sequence models
-on the SAMSum corpus. Achieves **ROUGE-L 40.12** — exceeding the ≥ 40 project
-target — using `facebook/bart-base` (139 M parameters), running on a single
-Apple M4 Pro with BF16/MPS and no cloud GPU.
+on the SAMSum corpus. The **≥ 40 ROUGE-L** criterion is met by **`facebook/bart-base`**
+(**40.12** after E3 decoding) **and** by **`google/flan-t5-base`** full fine-tune
+(**~42.3** test ROUGE-L — see `results/metrics/google_flan-t5-base_with_speakers_test.json`).
+**T5-small** E1 stays ~**32**; always **name the checkpoint** when you cite a score.
 
 ```
 Raw SAMSum dialogues (16,368 total)
@@ -18,7 +19,7 @@ Raw SAMSum dialogues (16,368 total)
       ▼  decoding_ablation.py — 29-config beam search / length-penalty sweep
       ▼  D27: num_beams=5 · length_penalty=1.33
 
-ROUGE-L 40.12
+ROUGE-L 40.12 (BART-base + D27 decoding — not T5-small)
 ```
 
 ---
@@ -66,9 +67,27 @@ parameter-efficient fine-tuning (LoRA), and a live Streamlit inference demo.
 
 ### Report alignment (grading / PDF evidence)
 
-**ROUGE-L ≥ 40 vs T5 (spec clarity).** Project copy often ties the ≥ 40 target to **T5-small**. In *this* repository the ≥ 40 result is **BART-base E1 + E3 decoding** (**39.85** → **40.12** with **D27** on the 819-sample test set). **T5-small E1** full fine-tune is **≈ 31.95** ROUGE-L — useful as a baseline but **not** the architecture that clears 40. Any write-up should name **BART + decoding** when citing 40.12; cite **T5** only with its own numbers unless you add further T5 training or decoding work.
+#### P0 — Model zoo truth table (819-sample test ROUGE-L)
 
-**Task 5 — structured JSON: what “valid JSON” means here.** Do not report stale tables where **`generative_native_json_rate = 0`** or **`sweet_spot: null`** if the committed artifacts say otherwise. **Authoritative files:** `results/metrics/task5_structured_output.json` (**`n_samples` = 64** in the committed run) and `results/metrics/task5_sweet_spot.json`. Definitions are spelled out in those files’ **`metric_notes`** field; in short:
+Use this table in PDFs/interviews so **claims never outrun artifacts**. Values below are from committed `results/metrics/*.json` unless you retrain.
+
+| Hub model | Train / decode | ROUGE-L | Primary evidence JSON |
+|-----------|----------------|---------|------------------------|
+| `facebook/bart-base` | E1 (default generate) | **39.85** | `facebook_bart-base_with_speakers_test.json` |
+| `facebook/bart-base` | E3 best **D27** (beam 5, lp 1.33) | **40.12** | `experiment_3_decoding_summary.json` |
+| `google/flan-t5-base` | E1 full fine-tune | **~42.3** | `google_flan-t5-base_with_speakers_test.json` |
+| `t5-small` | E1 full fine-tune | **~31.95** | `t5-small_with_speakers_test.json` |
+| `t5-small` | Decode sweep only (no retrain) | **~31.99** best | `t5_decoding_sweep_summary.json` |
+
+**ROUGE-L ≥ 40 vs “T5” (spec clarity).** The ≥ 40 line is met by **BART-base E1 + E3 decoding** (**39.85** → **40.12** with **D27**, 819-test) **and** by **`google/flan-t5-base` E1** full fine-tune (**≈ 42.27** test ROUGE-L with `summarize: ` — `google_flan-t5-base_with_speakers_test.json`). **T5-small E1** remains **≈ 31.95** ROUGE-L (decode sweep **~31.99**). In reports, **name the exact hub id / run**: do not say “T5 hit 40” if you mean **FLAN-T5-base** or **BART**.
+
+**T5/FLAN tokenization:** `preprocess.py` applies the **`summarize: `** prefix for all **T5 / FLAN-T5** hub models when `task_prefix` is empty (aligned with `baseline_zeroshot.py` and extension tasks). **Delete old `data/cache/samsum_*_t5-small`** and re-run preprocess before retraining if your cache predates this behavior — numbers will shift slightly vs older artifacts trained on no-prefix inputs.
+
+#### P0 — Task 5 headline for external readers
+
+**Product label:** **Salvage-mediated structured API** (deterministic repair from JSON-ish model text + guaranteed schema envelope). **Not** “the model always emits `json.loads`-clean JSON.” For that **strict** definition, cite only **`strict_generative_json_rate`** (committed runs: **0.0** per rank). **`generative_native_json_rate = 1.0`** means **strict + salvage**, per **`metric_notes`** — safe for graduation rubrics only if you say **salvage** out loud.
+
+**Task 5 — structured JSON: what “valid JSON” means here.** Do not report stale tables where **`generative_native_json_rate = 0`** or **`sweet_spot: null`** if the committed artifacts say otherwise. **Authoritative files:** `results/metrics/task5_structured_output.json` — `structured` defaults to **`n_samples=819`** (full test); use `--n_samples 64` for smoke tests. Older snapshots may show **64**; re-run `make task5-structured` to refresh. Do not claim “95%+ on test set” unless this file’s `n_samples` is **819** (or you report CIs from a larger sample). Definitions are spelled out in those files’ **`metric_notes`** and **`p0_external_disclaimer`**; in short:
 
 - **`strict_generative_json_rate`** — `json.loads` succeeds on the (repaired) model string alone (**strictest**; T5 often stays at **0** due to syntax drift).
 - **`salvaged_json_rate`** — deterministic recovery from **JSON-ish** model text (**no** prose→gold heuristic).
@@ -76,6 +95,10 @@ parameter-efficient fine-tuning (LoRA), and a live Streamlit inference demo.
 - **`prose_projection_rate`** — schema filled via **`gold_summary_to_structured_obj`** from model **prose** (guaranteed keys; not counted as generative-native).
 
 With **`merged_structured/`** and pipeline **`reliable`**, the committed sweep rows show **`generative_native_json_rate` = 1.0**, **`salvaged_json_rate` = 1.0**, **`strict_generative_json_rate` = 0.0**, **`prose_projection_rate` = 0.0** per rank. **`task5_sweet_spot.json`** lists a **non-null `sweet_spot`** (e.g. **rank 16**, free-form ROUGE-L **34.16**, same parse fields as above). **`package`** resolves `sweet_spot` → `operational_pick` → `--default_rank` as documented in `docs/EXPERIMENTS.md`.
+
+#### P0 — Task 4 headline
+
+**Honest headline:** **No aggregate robustness lift** — micro **`robustness_gain` ≈ −0.07** on **100** held-out adversarial dialogues (`task4_robustness_comparison.json`). **Per-pattern** trade-offs (**tangent** up, **very_long** down, etc.) are the story — not “retrain fixed robustness.”
 
 **Task 4 — adversarial robustness narrative.** **`results/metrics/task4_robustness_comparison.json`** is the aggregate evidence on **100** held-out adversarial dialogues (micro ROUGE-L **32.91 → 32.84**, **`robustness_gain` ≈ −0.07**). **Per-pattern** **`robustness_gain_by_pattern`**: **noise** ≈ **0**, **overlapping** ≈ **−0.23**, **tangent** ≈ **+0.26**, **very_long** ≈ **−0.32**. It would be misleading to claim **overall** robustness improved; the honest story is **small negative aggregate** with **pattern-level trade-offs**.
 
@@ -109,7 +132,7 @@ while preserving correct speaker attribution.
   dialogues average 148.9 tokens (~5.2× compression).
 
 **Success criterion:** ROUGE-L ≥ 40 on the 819-sample SAMSum test set.
-Achieved: **ROUGE-L 40.12** (D27 decoding config).
+**Met with:** `facebook/bart-base` at **40.12** (D27 decoding); **`google/flan-t5-base`** at **~42.3** (E1 full fine-tune, default generate). **T5-small** E1 + decode sweep stays **near ~32**. For brief alignment, **FLAN-T5-base** is the smallest “T5 family” model in this repo that clears 40 without BART (`make train-flan-base`).
 
 ---
 
@@ -523,10 +546,12 @@ output of 17.18 tokens per summary.
 
 ## 9. Demo Application
 
-A Streamlit web application provides a live inference interface requiring no
-code.
+The **Project 2** brief allows **Gradio *or* Streamlit**. This repo ships **both**:
 
-### Features
+- **Streamlit** — full UI (action items, NER, Task 5 hooks): recommended for demos.
+- **Gradio** — minimal summarize-only UI for literal brief compliance and quick peer reviews.
+
+### Features (Streamlit)
 
 - **Model selector** — sidebar dropdown auto-discovers all checkpoints in
   `models/best/`; switch between BART, T5, LoRA, and extended variants
@@ -548,6 +573,10 @@ streamlit run scripts/app.py
 # or via the launcher:
 bash scripts/run_app.sh
 # opens http://localhost:8501
+
+# Gradio (optional — install: pip install gradio)
+make gradio-demo
+# or: PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/gradio_demo.py → http://127.0.0.1:7860
 ```
 
 ---
@@ -557,6 +586,7 @@ bash scripts/run_app.sh
 ```
 meeting-summarizer/
 ├── config.yaml                   # ALL hyperparameters — single source of truth
+├── config_max1024.yaml          # 1024-token input experiment (+ separate token cache suffix)
 ├── config_extended.yaml          # Extended training config (E8: 8 epochs, cosine LR)
 ├── requirements.txt              # Full pinned dependency list
 ├── Makefile                      # Workflow targets: make install / train / demo / …
@@ -586,7 +616,7 @@ meeting-summarizer/
 │       ├── zeroshot_*.json       # E0 zero-shot baselines
 │       ├── *_test.json           # Fine-tuned model test-set evaluations
 │       └── README.md             # Field-by-field schema for all metric files
-├── scripts/                      # 18 executable pipeline scripts
+├── scripts/                      # Executable pipeline scripts (core + tasks + demos)
 │   ├── verify_env.py             # Pre-flight MPS / BF16 environment check
 │   ├── predownload_assets.py     # One-time HuggingFace asset download
 │   ├── hf_whoami.py              # HuggingFace authentication check
@@ -604,6 +634,7 @@ meeting-summarizer/
 │   ├── compare_experiments.py    # Aggregate results → comparison table + CSV
 │   ├── error_analysis_helper.py  # 20-sample error analysis generation
 │   ├── app.py                    # Streamlit inference demo
+│   ├── gradio_demo.py            # Gradio inference demo (brief option)
 │   └── run_app.sh                # Streamlit launcher script
 ├── notebooks/
 │   └── eda.ipynb                 # SAMSum EDA: token stats, speaker dist, plots
@@ -676,6 +707,14 @@ python3 scripts/preprocess.py --variants split_speakers   # E6 windowing variant
 # ── Training ────────────────────────────────────────────────────────────────
 PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py              # E1 BART-base
 PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py --model t5-small   # E1 T5
+# FLAN-T5 (prefer this order for a higher T5-class ceiling than t5-small alone):
+# python3 scripts/predownload_assets.py    # or: preprocess.py --online …  if tokenizer not cached
+# python3 scripts/preprocess.py --online --model flan-t5-base --variants with_speakers no_speakers
+# PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py --model flan-t5-base
+# … then flan-t5-small, or stay on t5-small after comparing validation ROUGE.
+# Optional: stop after epoch-1 val if ROUGE is below a floor (saves time on bad LR/schedule trials)
+# PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py --model t5-small \
+#     --abort-if-first-eval-rougeL-below 31.5
 PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train_lora.py         # E5 LoRA
 PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/train.py \
     --config config_extended.yaml                                    # E8 extended
@@ -693,6 +732,8 @@ python3 scripts/decoding_ablation.py        # E3: 29-config decoding grid search
 python3 scripts/evaluate_faithfulness.py    # E4: NER hallucination + NLI
 python3 scripts/bootstrap_ci.py             # 95 % CIs for E1 model comparison
 python3 scripts/compare_experiments.py      # aggregate all results → CSV + table
+# T5-only beam / length_penalty grid (does not overwrite BART decoding_D*.json)
+# make t5-decoding-sweep   # → results/metrics/t5_decoding_sweep_summary.json (~20 min full test)
 
 # ── Task 4 — Adversarial robustness (T5-small LoRA) ─────────────────────────
 # Generate data first: make task4-generate  (or scripts/task4_adversarial.py generate)
@@ -709,10 +750,10 @@ PYTORCH_ENABLE_MPS_FALLBACK=1 python3 scripts/task5_lora_structured.py train_str
     --ranks 2 4 8 16 32   # writes models/best/t5-small_lora_r*/merged_structured/
 python3 scripts/task5_lora_structured.py eval --ranks 2 4 8 16 32
 # eval → task5_rank_ablation.json: merged size, adapter_weights_mb, adapter_trainable_params
-python3 scripts/task5_lora_structured.py structured --ranks 8   # default: --structured-pipeline reliable
+python3 scripts/task5_lora_structured.py structured --ranks 2 4 8 16 32   # default n_samples=819 full test; --n_samples 64 for smoke
 python3 scripts/task5_lora_structured.py sweet_spot   # native-JSON gate; use --fallback-rouge-only if desired
 python3 scripts/task5_lora_structured.py package                # committed: sweet_spot rank 16 → task5_production_config.json; else operational_pick / --default_rank
-# Reliable pipeline: 100% JSON round-trip via projection when needed; native JSON rate is separate (see metric_notes).
+# P0: Reliable path → valid schema dicts; committed strict_generative_json_rate=0 (salvage carries parse). See README § Report alignment.
 ```
 
 Equivalent `make` targets exist for every command above (`make train`,
