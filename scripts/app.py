@@ -20,6 +20,7 @@ Usage:
 
 import importlib.util
 import json
+import os
 import re
 import sys
 import time
@@ -48,6 +49,8 @@ structured_decoder_input_ids = _task5.structured_decoder_input_ids
 STRUCTURED_SCHEMA = _task5.STRUCTURED_SCHEMA
 TASK_PREFIX_T5 = _task5.TASK_PREFIX
 
+HF_TASK5_REPO_ID = os.getenv("HF_TASK5_REPO_ID", "saione/meeting-summarizer-dev")
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH  = PROJECT_ROOT / "config.yaml"
@@ -55,31 +58,130 @@ CONFIG_PATH  = PROJECT_ROOT / "config.yaml"
 # ── Available model checkpoints (discovered dynamically) ───────────────────────
 _MODEL_REGISTRY: dict[str, str] = {}
 
+
+def _is_hf_repo_id(model_path: str) -> bool:
+    """Best-effort check: hub IDs look like 'owner/repo' and are not local dirs."""
+    return "/" in model_path and not Path(model_path).exists()
+
+
+def _force_hf_online_mode() -> None:
+    """Ensure hub downloads are allowed even if shell exported offline flags."""
+    os.environ["TRANSFORMERS_OFFLINE"] = "0"
+    os.environ["HF_HUB_OFFLINE"] = "0"
+    os.environ["HF_DATASETS_OFFLINE"] = "0"
+
+
+def _hf_token() -> str | None:
+    """Read Hugging Face token from Streamlit secrets or env (optional for public repos)."""
+    try:
+        token = st.secrets.get("HF_TOKEN")
+        if token:
+            return str(token)
+    except Exception:
+        pass
+    return os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_TOKEN")
+
+
+def _discover_extra_hf_models() -> dict[str, str]:
+    """Load additional HF model options from env or Streamlit secrets.
+
+    Supported env formats:
+      1) HF_MODEL_OPTIONS_JSON='{"Label": "owner/repo", ...}'
+      2) HF_EXTRA_MODELS='Label=owner/repo;Other=owner/repo2'
+    """
+    out: dict[str, str] = {}
+
+    # 1. First consult Streamlit's native secrets dictionary (Best Practice for Cloud)
+    raw_json = ""
+    try:
+        raw_json = str(st.secrets.get("HF_MODEL_OPTIONS_JSON", "")).strip()
+    except Exception:
+        pass
+
+    # 2. Fallback to OS environment variables
+    if not raw_json:
+        raw_json = (os.getenv("HF_MODEL_OPTIONS_JSON") or "").strip()
+
+    if raw_json:
+        try:
+            parsed = json.loads(raw_json)
+            if isinstance(parsed, dict):
+                for label, repo_id in parsed.items():
+                    if isinstance(label, str) and isinstance(repo_id, str) and "/" in repo_id:
+                        out[label.strip()] = repo_id.strip()
+        except Exception:
+            pass
+
+    raw_pairs = (os.getenv("HF_EXTRA_MODELS") or "").strip()
+    if raw_pairs:
+        for item in raw_pairs.split(";"):
+            item = item.strip()
+            if not item or "=" not in item:
+                continue
+            label, repo_id = item.split("=", 1)
+            label = label.strip()
+            repo_id = repo_id.strip()
+            if label and "/" in repo_id:
+                out[label] = repo_id
+
+    return out
+
+
+def _hf_error_diagnosis(exc: Exception, repo_id: str) -> list[str]:
+    """Convert HF loading exception into actionable diagnostics for Streamlit UI."""
+    msg = str(exc).lower()
+    hints: list[str] = []
+
+    if "couldn't connect" in msg or "connection" in msg or "name or service not known" in msg:
+        hints.append("Network egress from this runtime to huggingface.co is blocked or failing.")
+    if "localentrynotfounderror" in msg or "outgoing traffic has been disabled" in msg:
+        hints.append("Runtime is effectively offline for HF downloads (no cached files available).")
+    if "401" in msg or "403" in msg or "forbidden" in msg or "unauthorized" in msg or "gated" in msg:
+        hints.append("Repository access denied. Add a valid HF token in Streamlit Secrets as HF_TOKEN.")
+    if "404" in msg or "not found" in msg or "repository not found" in msg:
+        hints.append(f"Repository id appears invalid or missing: '{repo_id}'. Use full owner/repo.")
+
+    if not hints:
+        hints.append("Model download failed for an unspecified HF Hub reason. Check Streamlit app logs.")
+    return hints
+
 def _discover_models() -> dict[str, str]:
     """Scan models/best/ for available checkpoints and return {label: path}."""
     best_dir = PROJECT_ROOT / "models" / "best"
     registry: dict[str, str] = {}
-    if not best_dir.exists():
-        return registry
-
-    # Priority order of model checkpoints
-    candidates = [
-        ("BART-base (with_speakers)", "facebook_bart-base_with_speakers"),
-        ("BART-base LoRA",            "facebook_bart-base_lora"),
-        ("BART-base (no_speakers)",   "facebook_bart-base_no_speakers"),
-        ("FLAN-T5-base (with_speakers)", "google_flan-t5-base_with_speakers"),
-        ("T5-small (with_speakers)",  "t5-small_with_speakers"),
-        ("PEGASUS (with_speakers)",   "google_pegasus-cnn_dailymail_with_speakers"),
-    ]
-    for label, dirname in candidates:
-        ckpt_path = best_dir / dirname
-        if ckpt_path.exists():
-            registry[label] = str(ckpt_path)
+    if best_dir.exists():
+        # Priority order of model checkpoints
+        candidates = [
+            ("BART-base (with_speakers)", "facebook_bart-base_with_speakers"),
+            ("BART-base LoRA",            "facebook_bart-base_lora"),
+            ("BART-base (no_speakers)",   "facebook_bart-base_no_speakers"),
+            ("FLAN-T5-base (with_speakers)", "google_flan-t5-base_with_speakers"),
+            ("T5-small (with_speakers)",  "t5-small_with_speakers"),
+            ("PEGASUS (with_speakers)",   "google_pegasus-cnn_dailymail_with_speakers"),
+        ]
+        for label, dirname in candidates:
+            ckpt_path = best_dir / dirname
+            if ckpt_path.exists():
+                registry[label] = str(ckpt_path)
 
     prod = PROJECT_ROOT / "models" / "production_task5"
     if prod.exists() and any(prod.glob("*.safetensors")):
         registry["T5 Task 5 (production_task5)"] = str(prod)
+
+    # Keep HF option always available for cloud / lightweight repos.
+    registry["T5 Task 5 (HF Hub)"] = HF_TASK5_REPO_ID
+
+    # Optional extra HF-hosted checkpoints configured via environment.
+    registry.update(_discover_extra_hf_models())
     return registry
+
+
+def _first_local_model(models: dict[str, str]) -> tuple[str, str] | None:
+    """Return first local model option from registry, if any."""
+    for label, path in models.items():
+        if not _is_hf_repo_id(path):
+            return label, path
+    return None
 
 # ── Regex patterns (per spec) ──────────────────────────────────────────────────
 _MODAL_PATTERN  = r"\b(will|going to|needs? to|should|must|have to)\s+\w[\w\s]{4,40}"
@@ -117,10 +219,53 @@ def _load_model(model_path: str):
     device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
     dtype  = torch.bfloat16 if cfg.get("use_bf16", True) else torch.float32
 
-    tok = AutoTokenizer.from_pretrained(model_path)
-    mdl = AutoModelForSeq2SeqLM.from_pretrained(model_path, dtype=dtype).to(device)
+    if _is_hf_repo_id(model_path):
+        _force_hf_online_mode()
+        token = _hf_token()
+        tok = AutoTokenizer.from_pretrained(
+            model_path,
+            local_files_only=False,
+            token=token,
+        )
+        mdl = AutoModelForSeq2SeqLM.from_pretrained(
+            model_path,
+            dtype=dtype,
+            local_files_only=False,
+            token=token,
+        ).to(device)
+    else:
+        tok = AutoTokenizer.from_pretrained(model_path)
+        mdl = AutoModelForSeq2SeqLM.from_pretrained(model_path, dtype=dtype).to(device)
     mdl.eval()
     return tok, mdl, device, dtype, cfg
+
+
+def _load_task5_config(model_path: str) -> dict[str, Any] | None:
+    local_cfg = Path(model_path).resolve() / "task5_production_config.json"
+    if local_cfg.is_file():
+        with open(local_cfg) as f:
+            return json.load(f)
+
+    try:
+        from huggingface_hub import hf_hub_download  # noqa: PLC0415
+    except ImportError:
+        return None
+
+    _force_hf_online_mode()
+    token = _hf_token()
+    repo_id = model_path if _is_hf_repo_id(model_path) else HF_TASK5_REPO_ID
+    try:
+        remote_cfg = hf_hub_download(
+            repo_id=repo_id,
+            filename="task5_production_config.json",
+            local_files_only=False,
+            token=token,
+        )
+    except Exception:
+        return None
+
+    with open(remote_cfg) as f:
+        return json.load(f)
 
 
 @st.cache_resource(show_spinner="⏳ Loading spaCy model…")
@@ -134,9 +279,11 @@ def _load_nlp():
 
 def _model_needs_summarize_prefix(model_path: str) -> bool:
     """T5 / FLAN-T5 / Task-5 production checkpoints use ``summarize: `` in preprocess."""
-    p = Path(model_path).resolve()
+    p = Path(model_path)
     parts = " ".join(p.parts).lower()
     if "production_task5" in parts:
+        return True
+    if model_path == HF_TASK5_REPO_ID:
         return True
     name = p.name.lower()
     if "flan-t5" in name or "flan_t5" in parts:
@@ -191,11 +338,7 @@ def _generate(
 
 
 def _task5_packaging_config(model_path: str) -> dict[str, Any] | None:
-    cfg_path = Path(model_path).resolve() / "task5_production_config.json"
-    if not cfg_path.is_file():
-        return None
-    with open(cfg_path) as f:
-        return json.load(f)
+    return _load_task5_config(model_path)
 
 
 def _generate_json_supervised_t5(
@@ -345,8 +488,7 @@ def main() -> None:
         st.caption(f"**Checkpoint:** `{Path(model_path).name}`")
         st.caption(f"**Available models:** {len(models)}")
 
-    # Load resources (cached per model_path; no-op on subsequent clicks)
-    tokenizer, model, device, dtype, cfg = _load_model(model_path)
+    # Heavy resources are loaded on-demand when user clicks Summarize.
     nlp = _load_nlp()
 
     # ── Two equal columns ─────────────────────────────────────────────────
@@ -398,8 +540,38 @@ def main() -> None:
                 st.warning("⚠️  Please enter a dialogue before clicking Summarize.")
                 st.stop()
 
-            use_prefix = _model_needs_summarize_prefix(model_path)
-            t5_pack = _task5_packaging_config(model_path)
+            # Load selected model with robust fallback when HF is unreachable.
+            loaded_label = model_label
+            loaded_path = model_path
+            try:
+                tokenizer, model, device, dtype, cfg = _load_model(loaded_path)
+            except Exception as exc:
+                if _is_hf_repo_id(loaded_path):
+                    fallback = _first_local_model(models)
+                    if fallback is not None:
+                        fb_label, fb_path = fallback
+                        st.warning(
+                            "HF Hub is not reachable from this runtime. "
+                            f"Falling back to local checkpoint: {fb_label}."
+                        )
+                        tokenizer, model, device, dtype, cfg = _load_model(fb_path)
+                        loaded_label, loaded_path = fb_label, fb_path
+                    else:
+                        st.error(
+                            "Unable to load Hugging Face model. This runtime cannot reach huggingface.co "
+                            "and no local checkpoint is available."
+                        )
+                        for hint in _hf_error_diagnosis(exc, loaded_path):
+                            st.caption(f"• {hint}")
+                        st.exception(exc)
+                        st.stop()
+                else:
+                    st.error("Unable to load selected local checkpoint.")
+                    st.exception(exc)
+                    st.stop()
+
+            use_prefix = _model_needs_summarize_prefix(loaded_path)
+            t5_pack = _task5_packaging_config(loaded_path)
             json_supervised = bool(t5_pack and t5_pack.get("structured_supervised"))
 
             with st.spinner("Generating summary…"):
@@ -448,8 +620,8 @@ def main() -> None:
             # ── Generation info ───────────────────────────────────────────
             st.markdown("**ℹ️ Generation Info**")
             st.json({
-                "model"         : model_label,
-                "checkpoint"    : Path(model_path).name,
+                "model"         : loaded_label,
+                "checkpoint"    : Path(loaded_path).name,
                 "device"        : str(device),
                 "dtype"         : str(dtype),
                 "num_beams"     : num_beams,
