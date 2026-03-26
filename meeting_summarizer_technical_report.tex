@@ -1,0 +1,606 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{amssymb}
+\usepackage[labelfont=bf,font=small,skip=4pt]{caption}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{makecell}
+\usepackage{array}
+\usepackage{xurl}
+
+\usepackage{tabularx}
+\usepackage{booktabs}
+
+
+\usepackage{lmodern}
+\usepackage{xurl}
+\usepackage{titlesec}
+
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{6pt}
+
+\setlength{\parskip}{6pt}
+\setlength{\parindent}{0pt}
+
+\setlength{\textfloatsep}{10pt}
+\setlength{\floatsep}{8pt}
+\setlength{\intextsep}{8pt}
+
+\captionsetup{
+  justification=raggedright,
+  singlelinecheck=false
+}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+
+\geometry{margin=1in, top=1.05in, bottom=1.05in}
+\graphicspath{{docs/figures/report/images/}}
+
+\newcommand{\sectionrule}{\vspace{6pt}\hrule\vspace{10pt}}
+\newcommand{\tightitem}{\setlength\itemsep{2pt}\setlength\parskip{0pt}}
+\newcommand{\outcomebox}[1]{%
+  \begin{center}
+  \fbox{\parbox{0.95\linewidth}{#1}}
+  \end{center}
+}
+\newcommand{\demofigure}[4]{%
+  \begin{figure}[H]
+  \centering
+  \IfFileExists{#1}{%
+    \includegraphics[width=#2\linewidth]{#1}%
+  }{%
+    \fbox{\parbox{#2\linewidth}{\centering\vspace{1.3cm}\textit{Placeholder for #3}\\[4pt]\texttt{\detokenize{#1}}\vspace{1.3cm}}}%
+  }
+  \caption{#4}
+  \end{figure}
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=true,
+  columns=fullflexible,
+  keepspaces=true,
+  frame=single,
+  framesep=4pt,
+  xleftmargin=4pt,
+  xrightmargin=4pt
+}
+
+\begin{document}
+
+\title{\textbf{Meeting Summarizer}\\[4pt]
+\large  Technical Report }
+\author{Viswanadha Sai Nissankararao}
+\date{March 2026}
+\maketitle
+
+\begin{center}
+\begin{tabular}{ll}
+\textbf{Project:} & Meeting Summarizer (Project 14) \\
+\textbf{Dataset:} & SAMSum \\
+\textbf{Platform:} & Apple M4 Pro $\cdot$ 24 GB UMA $\cdot$ MPS / BF16 \\
+\textbf{Primary champion:} & BART-base + D27: ROUGE-L \textbf{40.12} (target $\geq$ 40) \\
+\textbf{Alternate (T5-class):} & FLAN-T5-base E1: ROUGE-L \textbf{42.275} (819-test; \path{google_flan-t5-base_with_speakers_test.json}) \\
+\textbf{Alignment doc:} & \path{docs/REPORT_ALIGNMENT.md} (PDF claims vs.\ committed JSON) \\
+\end{tabular}
+\end{center}
+
+\outcomebox{%
+\textbf{Project Outcome.} The project solves abstractive dialogue summarization on the SAMSum benchmark using fine-tuned seq2seq transformers and an interactive Streamlit demo. The primary reported champion is \texttt{facebook/bart-base} trained on speaker-tagged dialogues and decoded with beam search (Config D27: \texttt{num\_beams=5}, \texttt{length\_penalty=1.33}), achieving \textbf{ROUGE-L 40.12} on the full 819-example test set. An alternative path that also exceeds the $\geq 40$ target is \textbf{\texttt{google/flan-t5-base}} full fine-tune (\textbf{42.275} ROUGE-L on the same split). \textbf{\texttt{t5-small}} E1 is \textbf{31.95} ROUGE-L and does \emph{not} meet $\geq 40$ without a different model or checkpoint.
+}
+
+\sectionrule
+
+\section{Executive Summary and Success Criteria}
+
+This project builds an end-to-end \textbf{abstractive dialogue summarization system} for multi-speaker conversations. The system takes a chat-style conversation as input and returns a concise summary, along with optional structured outputs in the demo interface.
+
+The evaluation target was explicit: \textbf{ROUGE-L $\geq$ 40.0} on the 819-example SAMSum test set. The criterion is met by \textbf{BART-base} with tuned decoding (\textbf{40.12}) and by \textbf{FLAN-T5-base} full fine-tune (\textbf{42.275}). \textbf{T5-small} E1 reaches \textbf{31.95} and does \emph{not} satisfy the threshold on its own.
+
+Four model families were evaluated: \texttt{facebook/bart-base}, \texttt{t5-small}, \texttt{google/flan-t5-base}, and \texttt{google/pegasus-cnn\_dailymail}. Committed decode-sweep files named \path{t5_decode_*.json} / \path{t5_decoding_sweep_summary.json} refer to the \textbf{FLAN-T5-base} checkpoint unless regenerated for \texttt{t5-small} (see \texttt{hf\_model\_id} in JSON).
+
+\sectionrule
+
+\section{Problem Definition and Scope}
+
+\subsection{Task}
+
+Given a multi-turn, multi-speaker dialogue, generate a concise abstractive summary that preserves the main facts, decisions, and speaker attribution.
+
+\textbf{Example input:}
+\begin{lstlisting}
+Amanda: I baked cookies. Do you want some?
+Jerry: Sure!
+Amanda: I'll bring you tomorrow :-)
+Jerry: Thanks! Do you know how to make the lemon ones?
+Amanda: The biscuits?
+Jerry: Yeah.
+Amanda: I'll send you the recipe. It's easy!
+\end{lstlisting}
+
+\textbf{Example output:}
+\begin{lstlisting}
+Amanda will bring Jerry cookies tomorrow and send him the recipe for lemon biscuits.
+\end{lstlisting}
+
+\subsection{Why This Task Is Difficult}
+
+\begin{itemize}\tightitem
+\item Dialogues are informal, compressed, and often omit context.
+\item Correct summarization requires \textbf{speaker attribution}, not just topic extraction.
+\item The average compression ratio is about \textbf{5.2$\times$}, so omission and hallucination are realistic risks.
+\item Pre-trained summarization checkpoints are usually trained on news or web text rather than conversation.
+\end{itemize}
+
+\subsection{Success Criterion}
+
+\textbf{Primary target:} ROUGE-L $\geq$ 40.0 on the full SAMSum test split.\\
+\textbf{Achieved:} ROUGE-L 40.12 using BART-base + speaker tags + tuned decoding.
+
+\sectionrule
+
+\section{Dataset and Data Quality}
+
+\subsection{Dataset Overview}
+
+\begin{center}
+\begin{tabular}{p{0.28\linewidth}p{0.56\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Source & \texttt{knkarthick/samsum} on Hugging Face \\
+Reference & Gliwa et al., 2019 \\
+Domain & English messenger-style dialogues \\
+License & CC BY-NC-ND 4.0 \\
+Task type & Abstractive dialogue summarization \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Split & Dialogues \\
+\midrule
+Train & 14,731 \\
+Validation & 818 \\
+Test & 819 \\
+\textbf{Total} & \textbf{16,368} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Data Quality Evidence}
+
+\begin{itemize}\tightitem
+\item \textbf{Leakage check passed:} \texttt{scripts/data\_audit.py} found zero overlap across train, validation, and test IDs.
+\item \textbf{Dialogue length:} mean 148.9 tokens, p99 525 tokens.
+\item \textbf{Summary length:} mean 28.7 tokens, max 94 tokens.
+\item \textbf{Speaker structure:} 73\% of dialogues have exactly two speakers.
+\item \textbf{Training implication:} \texttt{max\_source\_length=512} covers nearly all dialogues, so truncation affects only an edge case.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\linewidth]{images/dataset_example_dialogue.png}
+\caption{Representative SAMSum dialogue example used to illustrate the input structure and target summary style.}
+\end{figure}
+
+\subsection{Dataset Risk}
+
+SAMSum is strong for controlled benchmarking, but it is \textbf{constructed rather than transcribed}. That means it is cleaner than real meeting transcripts and may overestimate performance on noisy production conversations.
+
+\sectionrule
+
+\section{Preprocessing and Baselines}
+
+\subsection{Preprocessing Variants}
+
+Three preprocessing variants were evaluated because they directly affect the scoring categories for data handling and experiments:
+
+\begin{itemize}\tightitem
+\item \textbf{with\_speakers:} preserve speaker tags such as \texttt{Amanda:}.
+\item \textbf{no\_speakers:} strip speaker tags to test the value of explicit attribution.
+\item \textbf{split\_speakers:} use sliding-window segmentation for dialogues that exceed 512 tokens.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\linewidth]{images/preprocessing_pipeline.png}
+\caption{Preprocessing pipeline used to create the three training variants from raw SAMSum dialogues.}
+\end{figure}
+
+\subsection{Zero-Shot Baselines}
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+Model & ROUGE-1 & ROUGE-2 & ROUGE-L & Test Size \\
+\midrule
+BART-base & 27.34 & 8.87 & 19.89 & 100 \\
+T5-small & 27.60 & 7.63 & 22.19 & 100 \\
+PEGASUS & 1.85 & 0.00 & 1.60 & 100 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+These baselines establish two points: fine-tuning is necessary, and larger models do not automatically transfer well to dialogue summarization.
+
+\sectionrule
+
+\section{Models and Experiment Design}
+
+\subsection{Model Choice}
+
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{p{0.28\linewidth}p{0.12\linewidth}X X}
+\toprule
+\textbf{Model} & \textbf{Params} & \textbf{Role in project} & \textbf{Why included} \\
+\midrule
+\makecell[l]{\texttt{facebook/bart-base}} & 139M & Primary model & Strong encoder-decoder baseline for abstractive summarization \\
+
+\makecell[l]{\texttt{t5-small}} & 60M & Compact comparison baseline & Tests a smaller text-to-text model under the same task \\
+
+\makecell[l]{\texttt{google/pegasus-}\\\texttt{cnn\_dailymail}} & 568M & Transfer stress test & Tests cross-domain transfer from news summarization \\
+
+\bottomrule
+\end{tabularx}
+\end{center}
+
+
+
+\subsection{Experiment Matrix}
+
+\begin{center}
+\small
+\begin{longtable}{p{0.08\linewidth}p{0.29\linewidth}p{0.12\linewidth}p{0.13\linewidth}p{0.28\linewidth}}
+\toprule
+\textbf{ID} & \textbf{Change tested} & \textbf{ROUGE-L} & \textbf{Cost} & \textbf{Conclusion} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Change tested} & \textbf{ROUGE-L} & \textbf{Cost} & \textbf{Conclusion} \\
+\midrule
+\endhead
+E0 & Zero-shot baselines & 19.89--22.19 & eval only & Fine-tuning is required \\
+E1 & BART vs T5 full fine-tuning & 39.85 vs 31.95 & 72.4 vs 35.1 min & BART is clearly stronger \\
+E2 & Remove speaker tags & 33.23 & standard train & Speaker attribution is crucial \\
+E3 & Tune decoding hyperparameters & \textbf{40.12} & no retraining & Best final result \\
+E4 & Faithfulness evaluation & n/a & eval only & ROUGE alone is insufficient \\
+E5 & LoRA instead of full fine-tune & 37.59 & 54.7 min & Efficient but lower quality \\
+E6 & Sliding-window handling & 39.08 & standard train & Extra complexity not justified \\
+E7 & PEGASUS transfer & 1.15 & 1 epoch & Severe domain mismatch \\
+E8 & Longer training schedule & 38.46 & 259.6 min & Slower and worse than default \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\sectionrule
+
+\section{Training Setup and Efficiency}
+
+\subsection{Core Training Configuration}
+
+\begin{center}
+\begin{tabular}{p{0.30\linewidth}p{0.22\linewidth}p{0.33\linewidth}}
+\toprule
+\textbf{Setting} & \textbf{Value} & \textbf{Why it matters} \\
+\midrule
+Max source length & 512 & Covers nearly all dialogues \\
+Max target length & 128 & Above the observed max summary length \\
+Batch size & 8 & Safe on 24 GB UMA with BF16 \\
+Learning rate & 5e-5 & Standard fine-tuning configuration \\
+Epochs & 5 & Best schedule among tested defaults \\
+Early stopping & patience = 2 & Reduces wasted computation \\
+Default decoding & beam = 4, lp = 1.0 & Training-time baseline \\
+Best decoding & beam = 5, lp = 1.33 & Final quality gain without retraining \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Efficiency Summary}
+
+\begin{center}
+\small
+\begin{tabular}{p{0.28\linewidth}p{0.16\linewidth}p{0.16\linewidth}p{0.26\linewidth}}
+\toprule
+\textbf{Configuration} & \textbf{Train time} & \textbf{Key metric} & \textbf{Efficiency takeaway} \\
+\midrule
+T5-small (E1) & 35.1 min & ROUGE-L 31.95 & Faster but well below target \\
+BART-base (E1) & 72.4 min & ROUGE-L 39.85 & Best full fine-tune baseline \\
+BART-base + D27 (E3) & retrain not needed & ROUGE-L 40.12 & Best overall result \\
+BART-base LoRA (E5) & 54.7 min & ROUGE-L 37.59 & Useful speed/quality compromise \\
+BART extended (E8) & 259.6 min & ROUGE-L 38.46 & Much slower and worse \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Training logs show post-training MPS memory near \textbf{16.96 GB}, which is consistent with the selected batch size and BF16 configuration on Apple Silicon.
+
+\sectionrule
+
+\section{Evaluation Methodology}
+
+\subsection{Primary Metrics}
+
+\begin{itemize}\tightitem
+\item \textbf{ROUGE-1:} unigram overlap.
+\item \textbf{ROUGE-2:} bigram overlap.
+\item \textbf{ROUGE-L:} longest common subsequence; this is the \textbf{primary selection metric}.
+\end{itemize}
+
+All ROUGE values are reported as macro-averaged F-measures $\times 100$ over the full 819-example test set unless otherwise noted.
+
+\subsection{Supporting Evaluation}
+
+The report uses three supporting checks beyond ROUGE:
+
+\begin{itemize}\tightitem
+\item \textbf{Bootstrap confidence intervals} for the main architecture comparison.
+\item \textbf{Faithfulness metrics} including entity hallucination, speaker preservation, and NLI entailment.
+\item \textbf{Manual error analysis} on 20 examples for qualitative failure inspection.
+\end{itemize}
+
+\textbf{Human evaluation scope.} This submission does \emph{not} report completed systematic blind human studies (e.g.\ large-scale rubric ratings). The repository ships CSV templates and rubrics under \path{results/steering/} and \path{results/metrics/} for optional local completion; automated proxies in JSON (e.g.\ \texttt{action\_proxy\_rate} for steering) are used where applicable. See the \emph{Human evaluation} subsection in \path{docs/REPORT_ALIGNMENT.md}.
+
+\begin{center}
+\begin{tabular}{p{0.30\linewidth}p{0.22\linewidth}p{0.34\linewidth}}
+\toprule
+\textbf{Metric} & \textbf{Value} & \textbf{Interpretation} \\
+\midrule
+Entity hallucination rate & 10.1\% (83/819) & Roughly 1 in 10 outputs invents an entity \\
+Speaker preservation & 75.5\% & Most summaries preserve speaker identity \\
+NLI faithfulness & 0.308 & Moderate entailment; useful but insufficient alone \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\sectionrule
+
+\section{Results and Best Model Selection}
+
+\subsection{Main Results}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\linewidth]{images/model_performance_comparison.png}
+\caption{Zero-shot and fine-tuned model comparison with uncertainty on the fine-tuned systems.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\linewidth]{images/experiment_rougel_summary.png}
+\caption{ROUGE-L across the reported experiments. The final system crosses the project target.}
+\end{figure}
+
+\subsection{Key Findings}
+
+\begin{itemize}\tightitem
+\item \textbf{Architecture:} BART-base outperformed T5-small by \textbf{+7.90 ROUGE-L} after fine-tuning.
+\item \textbf{Speaker tags:} removing them reduced ROUGE-L from 39.85 to \textbf{33.23}, making this the most important preprocessing decision.
+\item \textbf{Decoding:} D27 improved ROUGE-L from 39.92 to \textbf{40.12} without retraining.
+\item \textbf{Efficiency:} LoRA retained useful quality (37.59) with less cost than full fine-tuning.
+\item \textbf{Longer training:} E8 was slower and worse, so extra epochs were not justified.
+\end{itemize}
+
+\subsection{Best Model Selection}
+
+\begin{center}
+\begin{tabular}{p{0.28\linewidth}p{0.54\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Best configuration} \\
+\midrule
+Model & \texttt{facebook/bart-base} \\
+Preprocessing & \texttt{with\_speakers} \\
+Decoding & \texttt{num\_beams=5}, \texttt{length\_penalty=1.33} (D27) \\
+ROUGE-1 / ROUGE-2 / ROUGE-L & 48.48 / 23.55 / \textbf{40.12} \\
+Inference latency & 200.6 ms/sample \\
+Reason selected & Highest test ROUGE-L while remaining reproducible on local hardware \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{FLAN-T5-base (alternative $\geq 40$ path)}
+
+Full fine-tuning of \texttt{google/flan-t5-base} with speaker-tagged preprocessing yields \textbf{ROUGE-L 42.275} on the 819-example test set (\path{results/metrics/google_flan-t5-base_with_speakers_test.json}), exceeding the project target without relying on the BART decoding sweep. This does \emph{not} change the fact that \texttt{t5-small} E1 remains near \textbf{31.95}; always name the checkpoint when citing a score.
+
+\sectionrule
+
+\section{Error Analysis and Key Insights}
+
+\subsection{Error Distribution}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth]{images/error_distribution.png}
+\caption{Manual error analysis for a 20-example sample from the champion model outputs.}
+\end{figure}
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Category & Count & Share \\
+\midrule
+Correct & 4 & 20\% \\
+Partial & 8 & 40\% \\
+Hallucination & 6 & 30\% \\
+Over-generic & 2 & 10\% \\
+Truncated & 0 & 0\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Representative Failure Cases}
+
+\begin{center}
+\small
+\begin{tabular}{p{0.22\linewidth}p{0.28\linewidth}p{0.36\linewidth}}
+\toprule
+\textbf{Failure type} & \textbf{Observed output} & \textbf{Why it matters} \\
+\midrule
+Hallucination & ``Pogba scored the first goal of the season'' & The dialogue discussed form, not a goal; this is fabricated content \\
+Action inversion & ``Randolph will buy earplugs for Maya'' & The vocabulary is correct, but actor and recipient are reversed \\
+Missing action detail & ``Tom and Ben will meet at 2 pm'' & Logistics are preserved, but the instruction to bring papers is lost \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Three High-Value Insights}
+
+\begin{itemize}\tightitem
+\item \textbf{Speaker tags are the most impactful preprocessing choice.}
+\item \textbf{Decoding optimisation is free performance gain} once the model is trained.
+\item \textbf{Faithfulness remains the main weakness} even when ROUGE-L is strong.
+\end{itemize}
+
+\sectionrule
+
+\section{Project 3: Advanced Capabilities (Tasks 1--5)}
+
+The repository extends the core E0--E8 experiments with five research tracks. The following paragraphs are aligned with \path{docs/REPORT_ALIGNMENT.md} and committed artifacts under \path{results/metrics/}; they take precedence over informal slide wording.
+
+\subsection{Task 1: Attention analysis}
+
+\path{scripts/task1_attention_patterns.py} and related utilities provide attention visualizations and diagnostics. Interpretations should respect the script's distinction between teacher-forced attention and production beam decoding.
+
+\subsection{Task 2: Quantization and latency benchmarks}
+
+\textbf{Quantization.} Models are exported for \textbf{CTranslate2}; folder names such as \texttt{Q4\_K\_M} / \texttt{Q5\_K\_M} / \texttt{Q8\_0} are nominal mappings in the project layout --- \emph{not} a claim of llama.cpp GGUF conversion. Evidence: \path{task2_quantization_manifest.json}, \path{task2_benchmark_table.json}.
+
+\textbf{Streaming vs.\ batch.} \path{scripts/task2_benchmark.py} implements a rolling incremental summarizer for ablation. Latencies in \path{task2_streaming_vs_batch.json} compare two \emph{harness} modes; streaming can report much higher end-to-end time than batch. Treat these numbers as \textbf{diagnostic}, not as a production ``real-time'' SLA or sub-second live meeting latency; batch inference remains the default recommendation for wall-clock work.
+
+\subsection{Task 3: Steering and human evaluation}
+
+Activation steering experiments use automated metrics where committed (e.g.\ pilot JSON under \path{results/metrics/}). \textbf{Systematic blind human rating} at scale is \textbf{not} claimed as completed in this submission; rubrics and CSV templates live under \path{results/steering/} for optional local use.
+
+\subsection{Task 4: Adversarial robustness}
+
+Adversarial training and LoRA retraining are evaluated against \path{task4_robustness_comparison.json}. The aggregate micro headline \texttt{robustness\_gain} is approximately \textbf{$-0.07$} --- i.e.\ \textbf{no} aggregate ROUGE improvement on the headline metric. Per-pattern values in \texttt{robustness\_gain\_by\_pattern} show trade-offs (some patterns up, others flat or down). Do not describe the retrain as uniformly improving adversarial robustness without citing these fields.
+
+\subsection{Task 5: Structured JSON output}
+
+Structured evaluation in \path{task5_structured_output.json} (see field \texttt{n\_samples}, typically 819 at full test) distinguishes: \textbf{(i)} \texttt{strict\_generative\_json\_rate} --- success of \texttt{json.loads} on the raw model string (after whitespace repair only); \textbf{(ii)} \texttt{salvaged\_json\_rate} --- deterministic salvage of JSON-ish T5 text; \textbf{(iii)} \texttt{generative\_native\_json\_rate} = strict + salvage. Committed runs often show \textbf{strict = 0} with \textbf{salvage-mediated} recovery; reports should not imply ``the model always outputs valid JSON'' without naming the column. A valid API envelope via post-processing (\texttt{structured\_dict\_from\_model\_output}) is \emph{not} the same as strict generative JSON.
+
+\sectionrule
+
+\section{Demo Application}
+
+\subsection{What the Demo Shows}
+
+The Streamlit demo provides explicit evidence that the project is not only a training pipeline but also a usable application. The interface supports:
+
+\begin{itemize}\tightitem
+\item dialogue input through a text area,
+\item model selection from available checkpoints,
+\item decoding controls such as beam width and length penalty,
+\item generated summary output,
+\item extracted action items,
+\item named entities,
+\item generation metadata including model name, device, and latency.
+\end{itemize}
+
+\subsection{ Screenshots  }
+
+\demofigure{images/streamlit_ui_input.png}{0.96}{UI input screenshot}{Demo screenshot before generation: the dialogue input area is visible together with enough surrounding UI context to show how a user starts the workflow.}
+
+\demofigure{images/streamlit_full_results.png}{0.96}{UI output screenshot}{Demo screenshot after generation: the summary output is visible together with at least one structured output such as action items, named entities, or the latency/model information block.}
+
+\subsection{Qualitative Demo Examples}
+
+\begin{center}
+\small
+\begin{tabular}{p{0.18\linewidth}p{0.31\linewidth}p{0.25\linewidth}p{0.18\linewidth}}
+\toprule
+\textbf{Example} & \textbf{Input type} & \textbf{Expected visible output} & \textbf{Why it helps scoring} \\
+\midrule
+A & Short coordination dialogue & Faithful summary + correct speaker action & Shows baseline usability \\
+B & Longer planning dialogue & Summary + action items + entities & Shows richer structured output \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\sectionrule
+
+\section{Reproducibility}
+
+\subsection{Minimal Reproduction Path}
+
+\begin{lstlisting}
+# 1) Environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 2) Data and preprocessing
+python3 scripts/predownload_assets.py
+python3 scripts/data_audit.py
+python3 scripts/preprocess.py --variants with_speakers no_speakers split_speakers
+
+# 3) Training and evaluation
+python3 scripts/train.py
+python3 scripts/decoding_ablation.py
+python3 scripts/evaluate_faithfulness.py
+python3 scripts/bootstrap_ci.py
+
+# 4) Demo
+bash scripts/run_app.sh
+\end{lstlisting}
+
+\subsection{Critical Files}
+
+
+\begin{center}
+\small
+\begin{tabular}{p{0.32\linewidth}p{0.58\linewidth}}
+\toprule
+\textbf{Path} & \textbf{Purpose} \\
+\midrule
+\path{config.yaml} & primary training and decoding configuration \\
+\path{config_extended.yaml} & extended-schedule experiment (E8) \\
+\path{scripts/train.py} & main fine-tuning pipeline \\
+\path{scripts/decoding_ablation.py} & decoding sweep used for D27 selection \\
+\path{results/metrics/} & all reported quantitative outputs \\
+\path{docs/REPORT_ALIGNMENT.md} & checklist: JSON definitions, forbidden claims, Task 2/4/5 wording \\
+\path{models/best/} & best saved checkpoints \\
+\path{scripts/app.py} & Streamlit demo application \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+All experiments use \texttt{seed=42}, and the report only cites metrics that are already committed in repository outputs.
+
+\textbf{PDF alignment.} After editing metrics or prose, regenerate this PDF (or update the \texttt{.tex} source) so claims match \path{docs/REPORT_ALIGNMENT.md} and the JSON files listed there.
+
+\sectionrule
+
+\section{Conclusion}
+
+\begin{itemize}\tightitem
+\item The project \textbf{met its success criterion}, achieving ROUGE-L 40.12 (BART + D27) and also \textbf{42.275} with FLAN-T5-base E1 on the full SAMSum test split.
+\item The primary champion system is \textbf{BART-base with speaker tags and tuned beam-search decoding}; FLAN-T5-base provides an alternative path above the same threshold.
+\item The strongest empirical insight is that \textbf{speaker attribution is essential} for dialogue summarization quality.
+\item The main remaining weakness is \textbf{faithfulness}, especially hallucination and action-direction inversion.
+\item \textbf{Project 3 limitations:} Task~2 streaming figures are diagnostic, not production SLAs; Task~4 aggregate robustness gain is not positive on the headline metric; Task~5 structured output is salvage-aware --- not raw strict JSON from the generator alone; human rubric studies are template-based unless completed locally.
+\item The project is \textbf{reproducible and demo-ready} on consumer Apple Silicon hardware.
+\end{itemize}
+
+\vspace{6pt}
+
+
+\end{document}

@@ -4,16 +4,18 @@ This directory contains all per-experiment JSON output files. Every JSON file
 is a direct product of a deterministic, reproducible script run and serves as
 the primary evidence for reported metric values.
 
-**Grading context:** Tier **A** (what to cite + definitions) and Tier **B** (strict JSON vs salvage, Task 4 gain, human CSV gaps) are summarized in **`docs/rev-v1/REPO_CONTEXT.md`** and **`README.md`** § *Report alignment* / *Tier B*. **`docs/rev-v1/directory-tree.txt`** is a snapshot and may lag this folder.
+**Grading context:** Tier **A** (what to cite + definitions) and Tier **B** (strict JSON vs salvage, Task 4 gain, human CSV gaps) are summarized in **`docs/REPORT_ALIGNMENT.md`** (tracked), **`docs/rev-v1/REPO_CONTEXT.md`**, and **`README.md`** § *Report alignment* / *Tier B*. **`docs/rev-v1/directory-tree.txt`** is a snapshot and may lag this folder.
 
 ---
 
 ## File Count
 
+Approximately **150** `*.json` files live under `results/metrics/` in a full workspace (count varies by branch); the table below lists major patterns.
+
 | Pattern | Count | Produced by |
 |---------|-------|-------------|
 | `zeroshot_*.json` | 3 | `scripts/baseline_zeroshot.py` + `scripts/pegasus_experiment.py --zeroshot` |
-| `*_test.json` | 7 | `scripts/train.py`, `scripts/train_lora.py`, `scripts/pegasus_experiment.py --train` |
+| `*_test.json` | **9** | `scripts/train.py`, `scripts/train_lora.py`, `scripts/pegasus_experiment.py --train` — includes **`google_flan-t5-base_with_speakers_test.json`**, **`facebook_bart-base_with_speakers_max1024_test.json`** |
 | `decoding_D*.json` | 29 | `scripts/decoding_ablation.py` |
 | `experiment_3_decoding_summary.json` | 1 | `scripts/decoding_ablation.py` (aggregated) |
 | `sweep_*.json` | 68 | `scripts/multi_model_sweep.py` (4 models × 17 configs) |
@@ -38,9 +40,10 @@ Schema: `{ model, n_samples, rouge1, rouge2, rougeL, generation_config, timestam
 ```
 {run_name}_test.json
 ```
-Run names: `facebook_bart-base_with_speakers`, `facebook_bart-base_no_speakers`,
-`facebook_bart-base_split_speakers`, `t5-small_with_speakers`, `facebook_bart-base_lora`,
-`facebook_bart-base_extended`, `google_pegasus-cnn_dailymail_with_speakers`
+Run names include: `facebook_bart-base_with_speakers`, `facebook_bart-base_no_speakers`,
+`facebook_bart-base_split_speakers`, `facebook_bart-base_with_speakers_max1024`, `t5-small_with_speakers`,
+`google_flan-t5-base_with_speakers`, `facebook_bart-base_lora`, `facebook_bart-base_extended`,
+`google_pegasus-cnn_dailymail_with_speakers`
 
 Schema: `{ model, variant, rouge1, rouge2, rougeL, best_epoch, training_time_min, memory_profile_mb, ... }`
 
@@ -68,16 +71,16 @@ Config IDs: `baseline`, `D7`, `D8`, `D10`, `D12`, `D13`, `D14`, `D17`, `D19`, `D
 | `faithfulness_report.json` | E4: NER hallucination rate, NLI entailment score, speaker preservation |
 | `data_audit.json` | Token-length distributions, speaker stats, leakage check |
 | `experiment_3_decoding_summary.json` | All 29 D-configs ranked by ROUGE-L |
-| `t5_decoding_sweep_summary.json` | **T5-small** beam / length-penalty sweep (12 configs); per-row `t5_decode_*.json`; does not touch BART `decoding_D*.json` |
+| `t5_decoding_sweep_summary.json` | Beam / length-penalty sweep (`scripts/t5_decoding_sweep.py`); **committed** file is **`google/flan-t5-base`** (check `hf_model_id`); per-row `t5_decode_*.json`; does not touch BART `decoding_D*.json`. Run `make t5-decoding-sweep` for **t5-small** default or `make flan-decode-sweep` for FLAN. |
 | `multi_model_sweep_summary.json` | Best config per model across 68 sweep runs |
 
-### Task 2 Outputs — Quantization + Real-Time Benchmarking
+### Task 2 Outputs — Quantization + latency benchmarks
 
 | File | Description |
 |------|-------------|
-| `task2_quantization_manifest.json` | Feasibility report + runtime mapping + quantized artifact locations |
-| `task2_benchmark_table.json` | Per-quant/per-length latency, throughput, memory, ROUGE-L rows |
-| `task2_streaming_vs_batch.json` | Streaming vs batch quality and efficiency comparison |
+| `task2_quantization_manifest.json` | Feasibility report + **CTranslate2** runtime mapping (not llama.cpp GGUF) + quantized artifact locations |
+| `task2_benchmark_table.json` | Per-quant/per-length **per-dialogue** latency, throughput, memory, ROUGE-L rows |
+| `task2_streaming_vs_batch.json` | **Diagnostic** streaming vs batch comparison (incremental harness; **not** a real-time SLA — see **`docs/REPORT_ALIGNMENT.md`**) |
 | `task2_parallel_scaling.json` | 1/2/4-process throughput and memory contention results |
 | `task2_eval_rougel.json` | Object: `benchmark_args` (eval_samples, seed, paths), `results[]` rows; quant folder names are **nominal** — runtime is CTranslate2 (see `task2_quantization_manifest.json`) |
 
@@ -107,7 +110,7 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 | File | Description |
 |------|-------------|
 | `task5_rank_ablation.json` | Per rank: ROUGE-L, latency, **`model_size_mb`** (merged), **`adapter_weights_mb`**, **`adapter_trainable_params`**; see `metric_notes` |
-| `task5_structured_output.json` | Per rank: **`strict_generative_json_rate`**, **`salvaged_json_rate`**, **`generative_native_json_rate`** (strict+salvage); **`p0_external_disclaimer`** + **`metric_notes`**. Committed **`reliable` + `merged_structured`**: “native” **1.0** = salvage-mediated; strict often **0**; **`n_samples`** (**64** in snapshot — not full-test population claims) |
+| `task5_structured_output.json` | Per rank: **`strict_generative_json_rate`**, **`salvaged_json_rate`**, **`generative_native_json_rate`** (strict+salvage); **`p0_external_disclaimer`** + **`metric_notes`**. Committed **`reliable` + `merged_structured`**: “native” **1.0** = salvage-mediated; strict often **0**. Always cite the file’s **`n_samples`** field for population claims (full test = **819** when rerun with defaults) |
 | `task5_structured_train_r*.json` | Per-rank manifest from `train_structured` (samples, LoRA config, `json_target_format`) |
 | `task5_structured_training_summary.json` | Aggregate summary of structured training run |
 | `task5_sweet_spot.json` | Native-JSON gate + ROUGE window; committed file has **non-null `sweet_spot`** (e.g. rank **16**). Optional `--fallback-rouge-only` if gate fails; `package` falls back through `operational_pick` → `--default_rank` |

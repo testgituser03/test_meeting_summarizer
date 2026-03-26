@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """
-Task 2 — Benchmarking, streaming, and parallel scaling for quantized T5 summarization.
+Task 2 — Benchmarking, streaming (diagnostic), and parallel scaling for quantized T5 summarization.
+
+The streaming path (`RollingStreamingSummarizer`) re-encodes as dialogue chunks grow; wall-clock
+latency in ``task2_streaming_vs_batch.json`` sums that work and is **not** a production
+real-time SLA. Use ``task2_benchmark_table.json`` for per-dialogue batch-style latency; see
+``docs/REPORT_ALIGNMENT.md``.
 
 Reads quantized artifacts from models/quantized/task2/<Q4_K_M|Q5_K_M|Q8_0>
 created by scripts/task2_quantization.py.
 
 Benchmarks:
   1) Length sweep (10/50/100/200 utterances) with latency/throughput/memory/ROUGE-L.
-  2) Streaming incremental summarization vs batch.
+  2) Streaming vs batch **harness** comparison (incremental vs one-shot; diagnostic).
   3) Parallel inference scaling (1/2/4 processes) on Apple Silicon.
   4) Fair full-test ROUGE-L comparison with identical inputs.
 

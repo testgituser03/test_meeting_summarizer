@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Task 2 — Quantization pipeline for real-time summarization.
+Task 2 — Quantization pipeline for latency-efficient T5 inference (CTranslate2 export).
 
 Scope:
-  1) Feasibility check for llama.cpp + T5 encoder-decoder support.
+  1) Feasibility check for llama.cpp + T5 encoder-decoder support (typically: not viable for GGUF here).
   2) LoRA adapter merge (if needed) into a standard HuggingFace checkpoint.
   3) Quantized export for production inference runtime.
 

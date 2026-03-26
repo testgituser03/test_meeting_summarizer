@@ -61,8 +61,15 @@ config.yaml ──► scripts/ ──► data/cache/ ──► models/best/ ─�
 ### Stage 4 — Demo
 | Script | Purpose |
 |--------|---------|
-| `scripts/app.py` | Streamlit inference demo with model selector, generation controls, NER, action items |
-| `scripts/run_app.sh` | Shell launcher: activates venv, sets `PYTORCH_ENABLE_MPS_FALLBACK=1`, starts server |
+| `scripts/app.py` | Streamlit inference demo with model selector, generation controls, NER, action items, Task 5 schema hooks |
+| `scripts/gradio_demo.py` | Optional Gradio UI (`make gradio-demo`); uses `model_registry` for hub ids and prefixes |
+| `scripts/model_registry.py` | Resolves Hugging Face hub ids, local run names, and T5-style `summarize: ` prefixes |
+| `scripts/run_app.sh` | Shell launcher: activates venv, sets `PYTORCH_ENABLE_MPS_FALLBACK=1`, starts Streamlit |
+
+### Stage 5 — T5-class decoding sweep (no BART overwrite)
+| Script | Purpose | Output |
+|--------|---------|--------|
+| `scripts/t5_decoding_sweep.py` | Beam / length-penalty grid on a saved T5 or FLAN checkpoint (`make t5-decoding-sweep` → default **t5-small** paths; `make flan-decode-sweep` → FLAN) | `results/metrics/t5_decode_*.json`, `t5_decoding_sweep_summary.json` — **committed** JSONs are **FLAN** (check `hf_model_id`) |
 
 ---
 
@@ -133,7 +140,8 @@ meeting-summarizer/
 ├── requirements.txt             # Pinned Python dependencies
 ├── model_card.md                # HuggingFace model card
 ├── Makefile                     # Common workflow targets
-├── scripts/                     # All executable pipeline scripts (18 files)
+├── scripts/                     # Executable pipeline scripts (30 × `.py` + `run_app.sh`; see README tree)
+├── config_max1024.yaml          # 1024-token input experiment (`make preprocess-1024`)
 ├── data/cache/                  # Tokenized HuggingFace datasets (gitignored)
 ├── models/checkpoints/          # Per-epoch Trainer checkpoints (gitignored)
 ├── models/best/                 # Best-rougeL checkpoint per run (gitignored)
@@ -142,7 +150,8 @@ meeting-summarizer/
 ├── notebooks/eda.ipynb          # SAMSum exploratory data analysis
 └── docs/
     ├── ARCHITECTURE.md          # This document
-    └── EXPERIMENTS.md           # Full experiment results and analysis
+    ├── EXPERIMENTS.md           # Full experiment results and analysis
+    └── REPORT_ALIGNMENT.md      # P0/P1: PDF/slide claims vs metrics; streaming; human eval scope; JSON defs
 ```
 
 ---

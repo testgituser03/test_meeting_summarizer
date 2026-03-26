@@ -6,8 +6,8 @@ unless noted otherwise. Hardware: Apple M4 Pro · 24 GB UMA · MPS / BF16.
 
 ### Grader-facing evidence (Tier A — cite committed JSON)
 
-1. **ROUGE ≥ 40:** Met by **BART-base E3 (D27)** (**40.12**) and **`google/flan-t5-base` E1** (**~42.3** test ROUGE-L — `google_flan-t5-base_with_speakers_test.json`) on the 819-sample test set — **not** by **T5-small E1** (**≈ 31.95**). See **`README.md`** *P0 — Model zoo truth table*.
-2. **Task 5 JSON metrics (P0):** **`task5_structured_output.json`** — **external label:** salvage-mediated structured API; cite **`strict_generative_json_rate`** for “no repair” JSON. **`generative_native_json_rate`** = strict + salvage. Read **`p0_external_disclaimer`** + **`metric_notes`**. `n_samples` in file (committed **64** — not 819).
+1. **ROUGE ≥ 40:** Met by **BART-base E3 (D27)** (**40.12**) and **`google/flan-t5-base` E1** (**42.28** test ROUGE-L — **42.275** in `google_flan-t5-base_with_speakers_test.json`) on the 819-sample test set — **not** by **T5-small E1** (**31.95**). Committed **`t5_decoding_sweep_summary.json`** is a **FLAN-T5-base** decode sweep (**~42.34** best), not T5-small — see **`README.md`** *P0 — Model zoo truth table*.
+2. **Task 5 JSON metrics (P0):** **`task5_structured_output.json`** — **external label:** salvage-mediated structured API; cite **`strict_generative_json_rate`** for “no repair” JSON. **`generative_native_json_rate`** = strict + salvage. Read **`p0_external_disclaimer`** + **`metric_notes`**. Committed file: **`n_samples`: 819** (full test); use **`make task5-structured-smoke`** or **`--n_samples 64`** for fast runs.
 3. **`task5_sweet_spot.json`** — committed repo has **`sweet_spot` non-null** (e.g. **rank 16**).
 4. **Task 4 pre/post:** **`task4_robustness_comparison.json`** — micro **`robustness_gain` ≈ −0.07**; report **`robustness_gain_by_pattern`** — **no aggregate robustness win**; per-pattern trade-offs only.
 
@@ -32,7 +32,11 @@ Compare test ROUGE to `facebook_bart-base_with_speakers_test.json` (512). Even a
 
 ### Tier B — PDF letter vs repo (honest gaps)
 
-See **`README.md`** § *Tier B* and **`docs/rev-v1/REPO_CONTEXT.md`** for the full table. In short: **(B1)** **`strict_generative_json_rate`** is still **0** — high **native** rate is **strict + salvage**, not raw `json.loads` perfection; **(B2)** Task 4 **gain** is **negative** on aggregate — still **honest** if you report **`robustness_gain_by_pattern`**; **(B3/B4)** steering + Task 4 coherence CSVs exist but need **human** scores for “complete” PDF compliance.
+See **`README.md`** § *Tier B*, **`docs/REPORT_ALIGNMENT.md`** (tracked P0/P1 checklist), and **`docs/rev-v1/REPO_CONTEXT.md`** for the full table. In short: **(B1)** **`strict_generative_json_rate`** is still **0** — high **native** rate is **strict + salvage**, not raw `json.loads` perfection; **(B2)** Task 4 **gain** is **negative** on aggregate — still **honest** if you report **`robustness_gain_by_pattern`**; **(B3/B4)** steering + Task 4 coherence CSVs are **templates** — either complete **human** ratings or **explicitly scope out** human evaluation per **`docs/REPORT_ALIGNMENT.md`** (default submission path: **no** completed blind human study).
+
+### Task 2 — Streaming vs “real-time” (P0)
+
+The benchmark’s **streaming** mode (`RollingStreamingSummarizer` in `scripts/task2_benchmark.py`) measures an **incremental** re-encode/re-decode loop. Committed **`task2_streaming_vs_batch.json`** shows **much higher** wall-clock latency for streaming than batch in this harness — **not** sub-second “live meeting” behavior. Treat **batch** / **per-dialogue** latency in **`task2_benchmark_table.json`** as the useful **latency–quality** trade-off; **do not** cite streaming rows as a production real-time SLA without a redesigned experiment (**`docs/REPORT_ALIGNMENT.md`**).
 
 ### Bootstrap / seeds (Project 3 methodology)
 
