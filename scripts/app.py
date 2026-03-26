@@ -31,6 +31,13 @@ import streamlit as st
 import torch
 import yaml
 
+# ── Force HF Online Mode for Streamlit Cloud ───────────────────────────────────
+# Must happen BEFORE task5_lora_structured (or transformers) is imported, 
+# because transformers evaluates os.environ["TRANSFORMERS_OFFLINE"] at module load.
+os.environ["TRANSFORMERS_OFFLINE"] = "0"
+os.environ["HF_HUB_OFFLINE"] = "0"
+os.environ["HF_DATASETS_OFFLINE"] = "0"
+
 # ── Task 5 structured schema (same module as offline eval / packaging) ───────
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
