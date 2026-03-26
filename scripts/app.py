@@ -159,12 +159,11 @@ def _discover_models() -> dict[str, str]:
     if best_dir.exists():
         # Priority order of model checkpoints
         candidates = [
+            ("FLAN-T5-base (with_speakers)", "google_flan-t5-base_with_speakers"),
             ("BART-base (with_speakers)", "facebook_bart-base_with_speakers"),
             ("BART-base LoRA",            "facebook_bart-base_lora"),
             ("BART-base (no_speakers)",   "facebook_bart-base_no_speakers"),
-            ("FLAN-T5-base (with_speakers)", "google_flan-t5-base_with_speakers"),
             ("T5-small (with_speakers)",  "t5-small_with_speakers"),
-            ("PEGASUS (with_speakers)",   "google_pegasus-cnn_dailymail_with_speakers"),
         ]
         for label, dirname in candidates:
             ckpt_path = best_dir / dirname
@@ -174,9 +173,6 @@ def _discover_models() -> dict[str, str]:
     prod = PROJECT_ROOT / "models" / "production_task5"
     if prod.exists() and any(prod.glob("*.safetensors")):
         registry["T5 Task 5 (production_task5)"] = str(prod)
-
-    # Keep HF option always available for cloud / lightweight repos.
-    registry["T5 Task 5 (HF Hub)"] = HF_TASK5_REPO_ID
 
     # Optional extra HF-hosted checkpoints configured via environment.
     registry.update(_discover_extra_hf_models())
@@ -483,10 +479,13 @@ def main() -> None:
 
     with st.sidebar:
         st.header("🔧 Configuration")
+        model_options = list(models.keys())
+        default_model = "FLAN-T5-base (with_speakers)"
+        default_index = model_options.index(default_model) if default_model in model_options else 0
         model_label = st.selectbox(
             "Model",
-            options=list(models.keys()),
-            index=0,
+            options=model_options,
+            index=default_index,
             help="Select a trained checkpoint to use for inference.",
         )
         model_path = models[model_label]
