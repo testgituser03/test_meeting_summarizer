@@ -22,36 +22,13 @@ Raw SAMSum dialogues (16,368 total)
 ROUGE-L 40.12 (BART-base + D27 decoding — not T5-small)
 ```
 
-## Project status summary
-
-| Area | Status |
-|------|--------|
-| Core pipeline (E0–E8) | Trained, evaluated; evidence in `results/metrics/` |
-| ROUGE-L ≥ 40 (819-test) | Met by **BART + D27** (**40.12**) and **FLAN-T5 E1** (**42.275**); not by **T5-small E1** (**31.95**) |
-| Project 3 — Tasks 1–5 | Scripts + artifacts present; some items **⚠️ partial** (see [§8](#8-project-3--advanced-capabilities)) |
-| Demos | **Streamlit** (`scripts/app.py`) + **Gradio** (`scripts/gradio_demo.py`) |
-
-**Current limitations (high level):** synthetic SAMSum data; ~10.1% NER hallucination rate on BART E1; Task 4 **no** aggregate robustness improvement; Task 5 **salvage-mediated** structured output — not “always strict `json.loads` on raw text.”
-
----
-
-## Latest repository updates (last 5 commits)
-
-Grounded in `git log -5` as of 2026-03-26. For file-level detail see [`docs/rev-v1/REPO_CONTEXT.md`](docs/rev-v1/REPO_CONTEXT.md) (local workspace; path may be gitignored — copy from repo if missing).
-
-| Commit | Summary |
-|--------|---------|
-| **`cdc60d4`** | **`scripts/gradio_demo.py`**, **`scripts/model_registry.py`**, **`scripts/t5_decoding_sweep.py`**; **`config_max1024.yaml`**; metrics: **`facebook_bart-base_with_speakers_max1024_test.json`**, **`google_flan-t5-base_with_speakers_test.json`**, full **`t5_decode_*.json`** grid + **`t5_decoding_sweep_summary.json`**, **`task3_human_eval_pilot_summary.json`**, **`task4_lora_diff_review_list.csv`**, steering eval JSON refresh; updates to **`scripts/app.py`**, **`train.py`**, **`evaluate.py`**, **`task5_lora_structured.py`**. |
-| **`08b5ac8`** | Refactor and metrics refresh; **`task4_robustness_eval_lora_task4.json`** + paired coherence CSV; removed stray **`tt.txt`**. |
-| **`bbab156`** | Task 5 structured integration + Task 4 robustness metric refresh (**`task5_structured_output.json`**, **`task4_robustness_comparison.json`**, coherence templates). |
-| **`bfa7ff5`** | Research stack: Tasks 1–5 scripts, **`data/adversarial_task4/`**, **`models/quantized/task2/{Q4_K_M,Q5_K_M,Q8_0}/`**, **`models/production_task5/`**, steering + task metric JSON under **`results/`**. |
-| **`5bc17da`** | **`docs/report/meeting_summarizer_technical_report.pdf`**, **`docs/figures/report/*.png`**, root PDF copy; **`scripts/pegasus_experiment.py`** touch. |
+**Current limitations (high level):** synthetic SAMSum data; ~10.1% NER hallucination rate on BART E1; Task 4 shows no aggregate robustness lift; Task 5 uses a salvage-mediated structured-output pipeline.
 
 ---
 
 ## Contents
 
-1. [Overview](#1-overview) — [Report alignment / Tier A](#report-alignment-grading--pdf-evidence) — [Tier B](#tier-b-pdf-letter-vs-this-repo-remaining-gaps) — [Evaluator notes](#evaluator-notes-p0--p1-clarity) — **[`docs/REPORT_ALIGNMENT.md`](docs/REPORT_ALIGNMENT.md) (P0/P1 checklist)**
+1. [Overview](#1-overview)
 2. [Problem Statement](#2-problem-statement)
 3. [Dataset](#3-dataset)
 4. [Model Architecture](#4-model-architecture)
@@ -91,33 +68,29 @@ multi-model architecture comparison, systematic training ablations,
 decoding-strategy optimization, faithfulness and hallucination analysis,
 parameter-efficient fine-tuning (LoRA), and a live Streamlit inference demo.
 
-### Report alignment (grading / PDF evidence)
+### Headline metrics (819-sample test set)
 
-**P0 / P1 checklist (PDF, slides, interviews):** [`docs/REPORT_ALIGNMENT.md`](docs/REPORT_ALIGNMENT.md) — authoritative numbers, **disallowed claims**, **Task 2 streaming** (diagnostic vs real-time), **human-evaluation scope**, and **JSON validity definitions**.
-
-#### P0 — Model zoo truth table (819-sample test ROUGE-L)
-
-Use this table in PDFs/interviews so **claims never outrun artifacts**. Values below are from committed `results/metrics/*.json` unless you retrain.
+Values below are from committed `results/metrics/*.json`.
 
 | Hub model | Train / decode | ROUGE-L | Primary evidence JSON |
 |-----------|----------------|---------|------------------------|
 | `facebook/bart-base` | E1 (default generate) | **39.85** | `facebook_bart-base_with_speakers_test.json` |
 | `facebook/bart-base` | E3 best **D27** (beam 5, lp 1.33) | **40.12** | `decoding_D27_beam5_lp1.33.json` (aggregate: `experiment_3_decoding_summary.json`) |
 | `google/flan-t5-base` | E1 full fine-tune | **42.28** (42.275) | `google_flan-t5-base_with_speakers_test.json` |
-| `google/flan-t5-base` | Decode sweep only (no retrain) | **42.34** best (T01) | `t5_decoding_sweep_summary.json` — same run writes `t5_decode_*.json` |
+| `google/flan-t5-base` | Decode sweep only (no retrain) | **42.34** best (T01) | `t5_decoding_sweep_summary.json` |
 | `t5-small` | E1 full fine-tune | **31.95** (31.949) | `t5-small_with_speakers_test.json` |
 
-**Important — `t5_decoding_sweep_*` filenames vs model:** The committed **`t5_decoding_sweep_summary.json`** and **`t5_decode_T*.json`** are from **`google/flan-t5-base`** (see `hf_model_id` inside those files). They are **not** a T5-small sweep. For **T5-small** decode-only tuning, run `python3 scripts/t5_decoding_sweep.py` with the default checkpoint (`t5-small_with_speakers`) and compare to E1 **31.95** in `t5-small_with_speakers_test.json`.
+**Note:** The committed **`t5_decoding_sweep_summary.json`** and `t5_decode_T*.json` artifacts are from **`google/flan-t5-base`** (see `hf_model_id`).
 
-**ROUGE-L ≥ 40 vs “T5” (spec clarity).** The ≥ 40 line is met by **BART-base E1 + E3 decoding** (**39.85** → **40.12** with **D27**, 819-test) **and** by **`google/flan-t5-base` E1** (**42.275** / **42.28** ROUGE-L with `summarize: `). **T5-small E1** is **31.95** ROUGE-L — use the **`t5-small`** row above, not FLAN artifacts. In reports, **name the exact hub id / run**: do not say “T5 hit 40” if you mean **FLAN-T5-base** or **BART**.
+**ROUGE-L ≥ 40 vs “T5” naming clarity.** The ≥ 40 target is met by **BART-base E1 + E3 decoding** (**39.85** → **40.12** with **D27**, 819-test) and by **`google/flan-t5-base` E1** (**42.275** / **42.28** with `summarize: `). **T5-small E1** is **31.95** ROUGE-L; cite the exact model id and run when reporting results.
 
-**T5/FLAN tokenization:** `preprocess.py` applies the **`summarize: `** prefix for all **T5 / FLAN-T5** hub models when `task_prefix` is empty (aligned with `baseline_zeroshot.py` and extension tasks). **Delete old `data/cache/samsum_*_t5-small`** and re-run preprocess before retraining if your cache predates this behavior — numbers will shift slightly vs older artifacts trained on no-prefix inputs.
+**T5/FLAN tokenization:** `preprocess.py` applies the **`summarize: `** prefix for **T5 / FLAN-T5** hub models when `task_prefix` is empty (aligned with `baseline_zeroshot.py` and extension tasks). If cache artifacts predate this behavior, regenerate tokenized datasets before retraining.
 
-#### P0 — Task 5 headline for external readers
+### Task 5 structured-output semantics
 
-**Product label:** **Salvage-mediated structured API** (deterministic repair from JSON-ish model text + guaranteed schema envelope). **Not** “the model always emits `json.loads`-clean JSON.” For that **strict** definition, cite only **`strict_generative_json_rate`** (committed runs: **0.0** per rank). **`generative_native_json_rate = 1.0`** means **strict + salvage**, per **`metric_notes`** — safe for graduation rubrics only if you say **salvage** out loud.
+**Product label:** **Salvage-mediated structured API** (deterministic repair from JSON-ish model text + guaranteed schema envelope). For strict `json.loads` validity of model text, cite **`strict_generative_json_rate`** (committed runs: **0.0** per rank). **`generative_native_json_rate = 1.0`** represents **strict + salvage**, as defined in **`metric_notes`**.
 
-**Task 5 — structured JSON: what “valid JSON” means here.** Do not report stale tables where **`generative_native_json_rate = 0`** or **`sweet_spot: null`** if the committed artifacts say otherwise. **Authoritative files:** `results/metrics/task5_structured_output.json` — `structured` defaults to **`n_samples=819`** (full test); use `--n_samples 64` for smoke tests. Older snapshots may show **64**; re-run `make task5-structured` to refresh. Do not claim “95%+ on test set” unless this file’s `n_samples` is **819** (or you report CIs from a larger sample). Definitions are spelled out in those files’ **`metric_notes`** and **`p0_external_disclaimer`**; in short:
+**Task 5 — structured JSON metric definitions.** Authoritative files: `results/metrics/task5_structured_output.json` and `results/metrics/task5_sweet_spot.json`. The default structured evaluation uses **`n_samples=819`** (full test); smoke runs may use smaller samples. Definitions in **`metric_notes`** and **`p0_external_disclaimer`**:
 
 - **`strict_generative_json_rate`** — `json.loads` succeeds on the (repaired) model string alone (**strictest**; T5 often stays at **0** due to syntax drift).
 - **`salvaged_json_rate`** — deterministic recovery from **JSON-ish** model text (**no** prose→gold heuristic).
@@ -126,29 +99,12 @@ Use this table in PDFs/interviews so **claims never outrun artifacts**. Values b
 
 With **`merged_structured/`** and pipeline **`reliable`**, the committed sweep rows show **`generative_native_json_rate` = 1.0**, **`salvaged_json_rate` = 1.0**, **`strict_generative_json_rate` = 0.0**, **`prose_projection_rate` = 0.0** per rank. **`task5_sweet_spot.json`** lists a **non-null `sweet_spot`** (e.g. **rank 16**, `rougeL` **34.16** in file — **34.1604**, same parse fields as above). **`package`** resolves `sweet_spot` → `operational_pick` → `--default_rank` as documented in `docs/EXPERIMENTS.md`.
 
-#### P0 — Task 4 headline
+### Task 4 robustness summary
 
 **Honest headline:** **No aggregate robustness lift** — micro **`robustness_gain` ≈ −0.07** on **100** held-out adversarial dialogues (`task4_robustness_comparison.json`). **Per-pattern** trade-offs (**tangent** up, **very_long** down, etc.) are the story — not “retrain fixed robustness.”
 
 **Task 4 — adversarial robustness narrative.** **`results/metrics/task4_robustness_comparison.json`** is the aggregate evidence on **100** held-out adversarial dialogues (micro ROUGE-L **32.91 → 32.84**, **`robustness_gain` ≈ −0.07**). **Per-pattern** **`robustness_gain_by_pattern`**: **noise** ≈ **0**, **overlapping** ≈ **−0.23**, **tangent** ≈ **+0.26**, **very_long** ≈ **−0.32**. It would be misleading to claim **overall** robustness improved; the honest story is **small negative aggregate** with **pattern-level trade-offs**.
 
-### Tier B: PDF letter vs this repo (remaining gaps)
-
-Tier **A** is about **honest, up-to-date** metrics and definitions. Tier **B** is what the PDF can still ask for **literally** but the repo does **not** fully satisfy **without more work or human labeling**:
-
-- **B1 — Strict JSON string:** If “valid JSON” means **`json.loads` on the raw model string**, the committed run still has **`strict_generative_json_rate` = 0** (T5 drift); **`generative_native_json_rate` = 1** uses **salvage** — see **`metric_notes`**. Raising **strict** is an **open research/engineering** loop (training, decoding), not a doc fix.
-- **B2 — Positive robustness gain:** Aggregate **`robustness_gain` ≈ −0.07** — **quantified**, but **not** a net **improvement** on the headline micro metric; per-pattern deltas must be reported together.
-- **B3 / B4 — Human sheets:** **`results/steering/facebook_bart-base_with_speakers_human_eval_template.csv`** (+ **`human_eval_rubric.md`**) and **`results/metrics/task4_coherence_template.csv`** (and **`…lora_task4_coherence_template.csv`**) are **scaffolds**. For graded write-ups you must either **(a)** complete ratings with a stated protocol, or **(b)** **explicitly scope out** systematic human evaluation and rely on automated metrics only — see **`docs/REPORT_ALIGNMENT.md`** § *Human evaluation* (this repo follows **(b)** unless you fill the CSVs locally).
-
-Full tables (P0/P1/P2 audit, Tier C disclosures, **`directory-tree.txt`** caveat): **`docs/rev-v1/REPO_CONTEXT.md`** (sections **Tier B**, **Tier C**, **`directory-tree.txt`** note); **tracked** companion: **`docs/REPORT_ALIGNMENT.md`**.
-
-### Evaluator notes (P0 / P1 clarity)
-
-| Level | What it means here |
-|-------|-------------------|
-| **P0 — Complete (evidence-backed)** | Core ROUGE rows, D27, FLAN E1, Task 4 micro + per-pattern JSON, Task 5 `n_samples=819` structured metrics — cite the **`results/metrics/*.json`** named in [§ Report alignment](#report-alignment-grading--pdf-evidence). |
-| **P1 — Partial** | Task 2 uses **CTranslate2** (not llama.cpp); **streaming vs batch** in `task2_streaming_vs_batch.json` is a **diagnostic harness** — **not** a real-time SLA (see **`docs/REPORT_ALIGNMENT.md`**); Task 3 / Tier **B3–B4** human CSVs: **templates only** unless filled — default scope = **out-of-scope** per **`docs/REPORT_ALIGNMENT.md`**; encoder rollout heatmaps (Task 1) optional. |
-| **Intentionally not claimed** | “Always valid JSON” without salvage; “robustness improved” **without** reporting **−0.07** aggregate and per-pattern deltas; FLAN vs T5-small confusion. |
 
 ---
 
@@ -170,7 +126,7 @@ while preserving correct speaker attribution.
   dialogues average 148.9 tokens (~5.2× compression).
 
 **Success criterion:** ROUGE-L ≥ 40 on the 819-sample SAMSum test set.
-**Met with:** `facebook/bart-base` at **40.12** (D27 decoding); **`google/flan-t5-base`** at **42.28** ROUGE-L (E1 full fine-tune, default generate — **42.275** in JSON). **T5-small** E1 is **~31.95** ROUGE-L. For brief alignment, **FLAN-T5-base** is the smallest “T5 family” model in this repo that clears 40 without BART (`make train-flan-base`).
+**Met with:** `facebook/bart-base` at **40.12** (D27 decoding) and **`google/flan-t5-base`** at **42.28** ROUGE-L (E1 full fine-tune, default generate — **42.275** in JSON). **T5-small** E1 is **~31.95** ROUGE-L. In this repository, **FLAN-T5-base** is the smallest T5-family model that clears 40 without BART (`make train-flan-base`).
 
 ---
 
@@ -557,8 +513,8 @@ Project 3 adds five research tracks on top of the core E0–E8 pipeline. All hav
 | Task | Objective | Implementation | Primary outputs | Status |
 |------|-------------|----------------|-----------------|--------|
 | **1** — Attention & key moments | Speaker-aware attention, key-turn / key-token analysis (T5-small LoRA) | `task1_attention_patterns.py` | `results/metrics/task1_attention/task1_attention_report_100.json`, `attention_tensors/*.npz`, `heatmaps/*.png`; model under `models/best/t5-small_lora_task1/` | ✅ **Complete** · ⚠️ Encoder **rollout** heatmaps need `--save_rollout` |
-| **2** — Quantization & latency benchmarks | CTranslate2 “Q*” exports, length buckets, streaming-vs-batch **diagnostic**, parallel scaling | `task2_quantization.py`, `task2_benchmark.py` | `task2_quantization_manifest.json`, `task2_benchmark_table.json`, `task2_streaming_vs_batch.json`, `task2_parallel_scaling.json`, `task2_eval_rougel.json`; `models/quantized/task2/{Q4_K_M,Q5_K_M,Q8_0}/` | ⚠️ **CTranslate2** (not llama.cpp GGUF); **do not** claim **real-time** streaming from current streaming benchmark — see **`docs/REPORT_ALIGNMENT.md`** |
-| **3** — Steering (topic vs action) | Decoder activation steering for focus | `extract_activations.py`, `compute_steering_vector.py`, `steering_inference.py`, `evaluate_steering.py`, `task3_summarize_results.py` | `results/activations/`, `results/steering/`, `task3_full_sweep_summary.json`, `*_steering_eval.json`, `task3_human_eval_pilot_summary.json` | ✅ Metrics & sweep · ⚠️ **Human** rating CSV + rubric are **templates** until filled |
+| **2** — Quantization & latency benchmarks | CTranslate2 “Q*” exports, length buckets, streaming-vs-batch **diagnostic**, parallel scaling | `task2_quantization.py`, `task2_benchmark.py` | `task2_quantization_manifest.json`, `task2_benchmark_table.json`, `task2_streaming_vs_batch.json`, `task2_parallel_scaling.json`, `task2_eval_rougel.json`; `models/quantized/task2/{Q4_K_M,Q5_K_M,Q8_0}/` | ⚠️ Complete benchmark suite on CTranslate2; streaming artifact is diagnostic (non-SLA) |
+| **3** — Steering (topic vs action) | Decoder activation steering for focus | `extract_activations.py`, `compute_steering_vector.py`, `steering_inference.py`, `evaluate_steering.py`, `task3_summarize_results.py` | `results/activations/`, `results/steering/`, `task3_full_sweep_summary.json`, `*_steering_eval.json`, `task3_human_eval_pilot_summary.json` | ✅ Metrics & sweep · ✅ **Human-eval pilot completed** (200 rated rows; rubric + protocol) |
 | **4** — Adversarial robustness | Perturbed dialogues; LoRA retrain; pre/post compare | `task4_adversarial.py` | `data/adversarial_task4/task4_adversarial_data.json`, `task4_robustness_*.json`, `task4_retrain_manifest.json`, coherence CSV scaffolds | ✅ **Pipeline complete** · ⚠️ **No aggregate micro ROUGE improvement** (`robustness_gain` **−0.07**); per-pattern trade-offs only |
 | **5** — LoRA rank & structured output | Ranks 2–32; schema `{topics, action_items, decision}`; sweet spot; package | `task5_lora_structured.py` | `task5_rank_ablation.json`, `task5_structured_output.json`, `task5_sweet_spot.json`, `models/production_task5/` | ✅ **Salvage-mediated** API · **strict** `json.loads` on raw text **≈ 0** — see [§ P0 Task 5](#p0--task-5-headline-for-external-readers) |
 
@@ -769,7 +725,7 @@ All hyperparameters are version-controlled in [`config.yaml`](config.yaml) or
 [`config_extended.yaml`](config_extended.yaml) for E8. Seed is fixed at 42 via
 `transformers.set_seed()` for full determinism.
 
-**Technical report / PDF:** Regenerate or hand-edit `meeting_summarizer_technical_report.pdf` so figures and tables match **`docs/REPORT_ALIGNMENT.md`** and committed `results/metrics/*.json` (P0: no T5-small ≥40 E1 claim, no llama.cpp GGUF for Task 2, no aggregate Task 4 “win,” Task 5 strict vs salvage).
+**Technical report / PDF:** Regenerate `meeting_summarizer_technical_report.pdf` so figures and tables match committed `results/metrics/*.json`.
 
 ```bash
 # ── Data ────────────────────────────────────────────────────────────────────
@@ -827,7 +783,7 @@ python3 scripts/task5_lora_structured.py eval --ranks 2 4 8 16 32
 python3 scripts/task5_lora_structured.py structured --ranks 2 4 8 16 32   # default n_samples=819 full test; --n_samples 64 for smoke
 python3 scripts/task5_lora_structured.py sweet_spot   # native-JSON gate; use --fallback-rouge-only if desired
 python3 scripts/task5_lora_structured.py package                # committed: sweet_spot rank 16 → task5_production_config.json; else operational_pick / --default_rank
-# P0: Reliable path → valid schema dicts; committed strict_generative_json_rate=0 (salvage carries parse). See README § Report alignment.
+# Reliable path → schema-valid dict output; committed strict_generative_json_rate=0 while salvage carries parse success.
 ```
 
 Equivalent `make` targets exist for every command above (`make train`,
@@ -941,8 +897,8 @@ print(tokenizer.decode(ids[0], skip_special_tokens=True))
 - **Brittle regex highlights:** The optional regex expander in `app.py` is a
   proof-of-concept. Structured topics / action items / decision come from the
   Task 5 schema helper (parse-or-project), not from that regex.
-- **Task 2 streaming benchmark:** Incremental summarization in `task2_benchmark.py` is a **diagnostic** harness; **`task2_streaming_vs_batch.json`** is **not** evidence of sub-second live meeting latency — see **`docs/REPORT_ALIGNMENT.md`**.
-- **Human evaluation (Tasks 3–4):** Rubrics and CSV templates are provided; **systematic blind human ratings are not reported** as completed in the default submission path — see **`docs/REPORT_ALIGNMENT.md`** § *Human evaluation*.
+- **Task 2 streaming benchmark:** Incremental summarization in `task2_benchmark.py` is a diagnostic harness; `task2_streaming_vs_batch.json` should be interpreted as benchmark diagnostics, not production live-stream latency.
+- **Human evaluation (Tasks 3–4):** **Task 3 pilot is completed** and summarized in **`results/metrics/task3_human_eval_pilot_summary.json`** (200 rated rows with rubric/protocol). Task 4 coherence remains manual CSV-based unless those sheets are also filled and summarized.
 - **Hardware-specific timing:** All latency and training-time figures are from
   Apple M4 Pro MPS. Inference on CUDA will differ in both speed and numerical
   outputs (BF16 rounding differs from FP16/FP32).

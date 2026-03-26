@@ -32,7 +32,7 @@ Compare test ROUGE to `facebook_bart-base_with_speakers_test.json` (512). Even a
 
 ### Tier B — PDF letter vs repo (honest gaps)
 
-See **`README.md`** § *Tier B*, **`docs/REPORT_ALIGNMENT.md`** (tracked P0/P1 checklist), and **`docs/rev-v1/REPO_CONTEXT.md`** for the full table. In short: **(B1)** **`strict_generative_json_rate`** is still **0** — high **native** rate is **strict + salvage**, not raw `json.loads` perfection; **(B2)** Task 4 **gain** is **negative** on aggregate — still **honest** if you report **`robustness_gain_by_pattern`**; **(B3/B4)** steering + Task 4 coherence CSVs are **templates** — either complete **human** ratings or **explicitly scope out** human evaluation per **`docs/REPORT_ALIGNMENT.md`** (default submission path: **no** completed blind human study).
+See **`README.md`** § *Tier B*, **`docs/REPORT_ALIGNMENT.md`** (tracked P0/P1 checklist), and **`docs/rev-v1/REPO_CONTEXT.md`** for the full table. In short: **(B1)** **`strict_generative_json_rate`** is still **0** — high **native** rate is **strict + salvage**, not raw `json.loads` perfection; **(B2)** Task 4 **gain** is **negative** on aggregate — still **honest** if you report **`robustness_gain_by_pattern`**; **(B3)** Task 3 human-eval pilot is completed (`task3_human_eval_pilot_summary.json`, 200 rated rows), while **(B4)** Task 4 coherence remains CSV-manual unless separately filled and summarized.
 
 ### Task 2 — Streaming vs “real-time” (P0)
 

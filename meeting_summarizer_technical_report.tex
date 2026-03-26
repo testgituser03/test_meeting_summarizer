@@ -356,7 +356,7 @@ The report uses three supporting checks beyond ROUGE:
 \item \textbf{Manual error analysis} on 20 examples for qualitative failure inspection.
 \end{itemize}
 
-\textbf{Human evaluation scope.} This submission does \emph{not} report completed systematic blind human studies (e.g.\ large-scale rubric ratings). The repository ships CSV templates and rubrics under \path{results/steering/} and \path{results/metrics/} for optional local completion; automated proxies in JSON (e.g.\ \texttt{action\_proxy\_rate} for steering) are used where applicable. See the \emph{Human evaluation} subsection in \path{docs/REPORT_ALIGNMENT.md}.
+\textbf{Human evaluation scope.} This submission includes a completed \textbf{Task 3 human-eval pilot}: \path{results/steering/facebook_bart-base_with_speakers_human_eval_rated_backup.csv} with protocol in \path{results/steering/human_eval_rubric.md}, summarized in \path{results/metrics/task3_human_eval_pilot_summary.json} (200 rated rows = 50 samples $\times$ 4 $\alpha$ settings). Task 4 coherence remains manual CSV-based unless those sheets are also filled and summarized. See \path{docs/REPORT_ALIGNMENT.md}.
 
 \begin{center}
 \begin{tabular}{p{0.30\linewidth}p{0.22\linewidth}p{0.34\linewidth}}
@@ -486,7 +486,7 @@ The repository extends the core E0--E8 experiments with five research tracks. Th
 
 \subsection{Task 3: Steering and human evaluation}
 
-Activation steering experiments use automated metrics where committed (e.g.\ pilot JSON under \path{results/metrics/}). \textbf{Systematic blind human rating} at scale is \textbf{not} claimed as completed in this submission; rubrics and CSV templates live under \path{results/steering/} for optional local use.
+Activation steering experiments use automated metrics plus a completed \textbf{human-eval pilot} (Task 3) with protocol-backed ratings and summary JSON under \path{results/metrics/}.
 
 \subsection{Task 4: Adversarial robustness}
 
@@ -596,7 +596,7 @@ All experiments use \texttt{seed=42}, and the report only cites metrics that are
 \item The primary champion system is \textbf{BART-base with speaker tags and tuned beam-search decoding}; FLAN-T5-base provides an alternative path above the same threshold.
 \item The strongest empirical insight is that \textbf{speaker attribution is essential} for dialogue summarization quality.
 \item The main remaining weakness is \textbf{faithfulness}, especially hallucination and action-direction inversion.
-\item \textbf{Project 3 limitations:} Task~2 streaming figures are diagnostic, not production SLAs; Task~4 aggregate robustness gain is not positive on the headline metric; Task~5 structured output is salvage-aware --- not raw strict JSON from the generator alone; human rubric studies are template-based unless completed locally.
+\item \textbf{Project 3 limitations:} Task~2 streaming figures are diagnostic, not production SLAs; Task~4 aggregate robustness gain is not positive on the headline metric; Task~5 structured output is salvage-aware --- not raw strict JSON from the generator alone; Task~3 human evaluation is pilot-complete, while Task~4 coherence sheets remain manual unless additionally filled.
 \item The project is \textbf{reproducible and demo-ready} on consumer Apple Silicon hardware.
 \end{itemize}
 

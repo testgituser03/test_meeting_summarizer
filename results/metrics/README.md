@@ -91,6 +91,7 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 | File Pattern | Description |
 |------|-------------|
 | `*_steering_eval.json` | Layer/alpha steering trade-off summary (ROUGE-L vs. action focus), plus optimal α under ROUGE-drop constraint |
+| `task3_human_eval_pilot_summary.json` | Completed pilot human-eval aggregate for steering clarity ratings (`n_rows_file=200`, `n_rated_rows=200`) |
 
 ### Task 4 Outputs — Adversarial Robustness
 
@@ -98,7 +99,7 @@ To refresh only this file (skip length/streaming/parallel benchmarks): `python s
 |------|-------------|
 | `task4_robustness_eval.json` | 150+150 ROUGE-L — default **`t5-small_lora_task1`** baseline |
 | `task4_robustness_eval_lora_task4.json` | Same split for **`t5-small_lora_task4`** after `retrain` (`eval --metrics-out …`) |
-| `task4_coherence_template.csv` | **Template only** — paired with default `task4_robustness_eval.json` (task1 preds) |
+| `task4_coherence_template.csv` | Manual coherence rating sheet paired with default `task4_robustness_eval.json` (task1 preds) |
 | `task4_robustness_eval_lora_task4_coherence_template.csv` | Same scaffold for **`eval --metrics-out …lora_task4.json`** (task4 preds) |
 | `task4_robustness_comparison.json` | Pre/post on **100** held-out; micro **`robustness_gain`** (committed **≈ −0.07**) + **`robustness_gain_by_pattern`**; `model_*_resolved` → `merged/` — cite aggregate **and** per-pattern in write-ups |
 | `task4_retrain_manifest.json` | Retrain hyperparameters (mix, LR, epochs, pattern-macro early-stop metric, best checkpoint) when `retrain` was run |
